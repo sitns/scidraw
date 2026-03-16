@@ -1,0 +1,15 @@
+node_modules/
+dist/
+dist-renderer/
+*.log
+*.aux
+*.synctex.gz
+*.pdf
+*.tex
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

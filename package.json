@@ -1,0 +1,47 @@
+{
+  "name": "sci-draw",
+  "version": "1.0.0",
+  "description": "Scientific diagram tool with code and visual editing",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "concurrently \"npm run dev:renderer\" \"wait-on http://localhost:3000 && electron .\"",
+    "dev:renderer": "vite",
+    "build:renderer": "vite build",
+    "pack": "npm run build:renderer && electron-builder --dir",
+    "dist": "npm run build:renderer && electron-builder"
+  },
+  "keywords": [
+    "diagram",
+    "latex",
+    "tikz",
+    "electron"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.7.0",
+    "concurrently": "^9.2.1",
+    "electron": "^41.0.2",
+    "electron-builder": "^26.8.1",
+    "vite": "^6.4.1",
+    "wait-on": "^9.0.4"
+  },
+  "dependencies": {
+    "electron-log": "^5.3.4",
+    "js-yaml": "^4.1.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "build": {
+    "appId": "com.scidraw.app",
+    "productName": "SciDraw",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/main/**/*",
+      "dist-renderer/**/*"
+    ]
+  }
+}
