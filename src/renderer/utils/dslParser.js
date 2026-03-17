@@ -26,7 +26,8 @@ export function parseDiagram(code) {
         style: {
           fill: node.style?.fill || '#ffffff',
           stroke: node.style?.stroke || '#000000',
-          strokeWidth: node.style?.strokeWidth || 1
+          strokeWidth: node.style?.strokeWidth || 1,
+          strokeDasharray: node.style?.strokeDasharray || 'solid'
         }
       })),
       edges: (parsed.edges || []).map((edge, index) => ({
@@ -35,6 +36,8 @@ export function parseDiagram(code) {
         to: edge.to,
         label: edge.label || '',
         style: edge.style || 'solid',
+        strokeWidth: edge.strokeWidth || 1.5,
+        strokeColor: edge.strokeColor || '#333333',
         fromDir: edge.fromDir || 'auto',
         toDir: edge.toDir || 'auto',
         curveType: edge.curveType || 'auto',
@@ -63,7 +66,8 @@ export function serializeDiagram(diagram) {
       style: {
         fill: node.style.fill,
         stroke: node.style.stroke,
-        strokeWidth: node.style.strokeWidth
+        strokeWidth: node.style.strokeWidth,
+        strokeDasharray: node.style.strokeDasharray !== 'solid' ? node.style.strokeDasharray : undefined
       }
     })),
     edges: diagram.edges.map(edge => ({
@@ -71,6 +75,8 @@ export function serializeDiagram(diagram) {
       to: edge.to,
       label: edge.label || undefined,
       style: edge.style !== 'solid' ? edge.style : undefined,
+      strokeWidth: edge.strokeWidth !== 1.5 ? edge.strokeWidth : undefined,
+      strokeColor: edge.strokeColor !== '#333333' ? edge.strokeColor : undefined,
       fromDir: edge.fromDir !== 'auto' ? edge.fromDir : undefined,
       toDir: edge.toDir !== 'auto' ? edge.toDir : undefined,
       curveType: edge.curveType !== 'auto' && edge.curveType ? edge.curveType : undefined,

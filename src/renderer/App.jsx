@@ -385,6 +385,54 @@ edges: []
     }
   };
 
+  const handleExportPDF = async () => {
+    if (!diagram) return;
+    
+    const svgElement = document.querySelector('.canvas-container svg');
+    if (!svgElement) return;
+    
+    const canvas = diagram.canvas || { width: 800, height: 600 };
+    const width = canvas.width || 800;
+    const height = canvas.height || 600;
+    
+    const svgClone = svgElement.cloneNode(true);
+    svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    svgClone.setAttribute('width', width);
+    svgClone.setAttribute('height', height);
+    
+    const controlPointElements = svgClone.querySelectorAll('g[key^="cp-"]');
+    controlPointElements.forEach(el => el.remove());
+    
+    const svgString = new XMLSerializer().serializeToString(svgClone);
+    
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Diagram</title>
+          <style>
+            body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+            svg { max-width: 100%; max-height: 100vh; }
+            @media print {
+              body { min-height: auto; }
+              svg { max-height: none; }
+            }
+          </style>
+        </head>
+        <body>
+          ${svgClone.outerHTML}
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.onload = () => {
+        printWindow.print();
+      };
+    }
+  };
+
   const handleWelcomeClose = () => {
     setShowWelcome(false);
     localStorage.setItem('scidraw-welcomed', 'true');
@@ -434,6 +482,7 @@ edges: []
           <button className="toolbar-btn" onClick={handleNewFile}>{t('toolbar.newFile', locale)}</button>
           <button className="toolbar-btn secondary" onClick={handleOpen}>{t('toolbar.open', locale)}</button>
           <button className="toolbar-btn secondary" onClick={handleSave}>{t('toolbar.save', locale)}</button>
+          <button className="toolbar-btn" onClick={handleExportPDF}>{t('toolbar.exportPDF', locale)}</button>
           <button className="toolbar-btn" onClick={handleExportTikZ}>{t('toolbar.exportTikZ', locale)}</button>
         </div>
       </div>
@@ -526,13 +575,20 @@ function NodeShape({ node, selected, onMouseDown }) {
   const fill = style?.fill || '#fff';
   const stroke = style?.stroke || '#000';
   const strokeWidth = style?.strokeWidth || 1;
+  const strokeDasharray = (() => {
+    switch (style?.strokeDasharray) {
+      case 'dashed': return '8,4';
+      case 'dotted': return '2,2';
+      default: return 'none';
+    }
+  })();
 
   const renderShape = () => {
     switch (type) {
       case 'circle':
         return (
           <g transform={`translate(${width/2}, ${height/2})`}>
-            <circle r={Math.min(width, height) / 2} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />
+            <circle r={Math.min(width, height) / 2} fill={fill} stroke={stroke} strokeWidth={strokeWidth} strokeDasharray={strokeDasharray} />
           </g>
         );
       case 'diamond':
@@ -540,10 +596,11 @@ function NodeShape({ node, selected, onMouseDown }) {
         const cy = height / 2;
         return (
           <polygon 
-            points={`${cx},0 ${width},${cy} ${cx},${height} 0,${cy}`} 
-            fill={fill} 
-            stroke={stroke} 
+            points={`${cx},0 ${width},${cy} ${cx},${height} 0,${cy}`}
+            fill={fill}
+            stroke={stroke}
             strokeWidth={strokeWidth}
+            strokeDasharray={strokeDasharray}
           />
         );
       case 'rounded':
@@ -556,6 +613,7 @@ function NodeShape({ node, selected, onMouseDown }) {
             fill={fill}
             stroke={stroke}
             strokeWidth={strokeWidth}
+            strokeDasharray={strokeDasharray}
           />
         );
       case 'process':
@@ -565,6 +623,7 @@ function NodeShape({ node, selected, onMouseDown }) {
             fill={fill}
             stroke={stroke}
             strokeWidth={strokeWidth}
+            strokeDasharray={strokeDasharray}
           />
         );
       case 'data':
@@ -574,6 +633,7 @@ function NodeShape({ node, selected, onMouseDown }) {
             fill={fill}
             stroke={stroke}
             strokeWidth={strokeWidth}
+            strokeDasharray={strokeDasharray}
           />
         );
       case 'box':
@@ -585,6 +645,7 @@ function NodeShape({ node, selected, onMouseDown }) {
             fill={fill}
             stroke={stroke}
             strokeWidth={strokeWidth}
+            strokeDasharray={strokeDasharray}
           />
         );
     }
@@ -940,10 +1001,10 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, selectedId, onSelect 
                 onSelect(edge.id);
               }}
             >
-              <path 
+              <path
                 d={edgeData.path}
-                stroke={isSelected ? '#007acc' : '#333'}
-                strokeWidth={isSelected ? 3 : 1.5}
+                stroke={isSelected ? '#007acc' : (edge.strokeColor || '#333')}
+                strokeWidth={isSelected ? (edge.strokeWidth || 1.5) * 2 : (edge.strokeWidth || 1.5)}
                 strokeDasharray={getStrokeDasharray(edge.style)}
                 fill="none"
                 markerEnd="url(#arrowhead)"

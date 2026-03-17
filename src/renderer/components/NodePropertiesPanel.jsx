@@ -22,6 +22,7 @@ function NodePropertiesPanel({
         fill: selectedNode.style?.fill || '#ffffff',
         stroke: selectedNode.style?.stroke || '#000000',
         strokeWidth: selectedNode.style?.strokeWidth || 2,
+        strokeDasharray: selectedNode.style?.strokeDasharray || 'solid',
         label: selectedNode.label || '',
         subtitle: selectedNode.subtitle || ''
       });
@@ -33,6 +34,8 @@ function NodePropertiesPanel({
       setEdgeFormData({
         label: selectedEdge.label || '',
         style: selectedEdge.style || 'solid',
+        strokeWidth: selectedEdge.strokeWidth || 1.5,
+        strokeColor: selectedEdge.strokeColor || '#333333',
         fromDir: selectedEdge.fromDir || 'auto',
         toDir: selectedEdge.toDir || 'auto',
         curveType: selectedEdge.curveType || 'auto',
@@ -56,6 +59,11 @@ function NodePropertiesPanel({
         ...updatedNode.style,
         strokeWidth: parseInt(value) || 2
       };
+    } else if (field === 'strokeDasharray') {
+      updatedNode.style = {
+        ...updatedNode.style,
+        strokeDasharray: value
+      };
     } else if (field === 'fill' || field === 'stroke') {
       updatedNode.style = {
         ...updatedNode.style,
@@ -72,9 +80,13 @@ function NodePropertiesPanel({
 
   const handleEdgeChange = (field, value) => {
     if (!selectedEdge) return;
-    
+
     let newValue = value;
-    
+
+    if (field === 'strokeWidth') {
+      newValue = parseFloat(value) || 1.5;
+    }
+
     if (field === 'curveType' && (value === 'bezier' || value === 'bezier2' || value === 'manual')) {
       const currentCps = edgeFormData.controlPoints || [];
       if (currentCps.length === 0) {
@@ -203,8 +215,8 @@ function NodePropertiesPanel({
             <label className="prop-label">
               {locale === 'zh' ? '线条样式' : 'Line Style'}
             </label>
-            <select 
-              value={edgeFormData.style || 'solid'} 
+            <select
+              value={edgeFormData.style || 'solid'}
               onChange={(e) => handleEdgeChange('style', e.target.value)}
               className="prop-input"
             >
@@ -212,6 +224,41 @@ function NodePropertiesPanel({
               <option value="dashed">{locale === 'zh' ? '虚线' : 'Dashed'}</option>
               <option value="dotted">{locale === 'zh' ? '点线' : 'Dotted'}</option>
             </select>
+          </div>
+
+          <div className="prop-group">
+            <label className="prop-label">
+              {locale === 'zh' ? '线条粗细' : 'Line Width'}
+            </label>
+            <input
+              type="number"
+              value={edgeFormData.strokeWidth || 1.5}
+              onChange={(e) => handleEdgeChange('strokeWidth', e.target.value)}
+              className="prop-input"
+              min="0.5"
+              max="10"
+              step="0.5"
+            />
+          </div>
+
+          <div className="prop-group">
+            <label className="prop-label">
+              {locale === 'zh' ? '线条颜色' : 'Line Color'}
+            </label>
+            <div className="color-input-wrapper">
+              <input
+                type="color"
+                value={edgeFormData.strokeColor || '#333333'}
+                onChange={(e) => handleEdgeChange('strokeColor', e.target.value)}
+                className="color-input"
+              />
+              <input
+                type="text"
+                value={edgeFormData.strokeColor || '#333333'}
+                onChange={(e) => handleEdgeChange('strokeColor', e.target.value)}
+                className="color-text"
+              />
+            </div>
           </div>
 
           <div className="prop-group">
@@ -446,6 +493,29 @@ function NodePropertiesPanel({
           .cp-add:hover {
             background: #1177bb;
           }
+          .color-input-wrapper {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+          }
+          .color-input {
+            width: 32px;
+            height: 28px;
+            padding: 0;
+            border: 1px solid #555;
+            border-radius: 3px;
+            cursor: pointer;
+          }
+          .color-text {
+            flex: 1;
+            padding: 6px 8px;
+            background: #3e3e3e;
+            border: 1px solid #555;
+            color: #d4d4d4;
+            border-radius: 3px;
+            font-size: 12px;
+            font-family: monospace;
+          }
         `}</style>
       </div>
     );
@@ -565,14 +635,29 @@ function NodePropertiesPanel({
           <label className="prop-label">
             {locale === 'zh' ? '边框宽度' : 'Border Width'}
           </label>
-          <input 
-            type="number" 
-            value={nodeFormData.strokeWidth || 2} 
+          <input
+            type="number"
+            value={nodeFormData.strokeWidth || 2}
             onChange={(e) => handleNodeChange('strokeWidth', e.target.value)}
             className="prop-input"
             min="0"
             max="10"
           />
+        </div>
+
+        <div className="prop-group">
+          <label className="prop-label">
+            {locale === 'zh' ? '边框样式' : 'Border Style'}
+          </label>
+          <select
+            value={nodeFormData.strokeDasharray || 'solid'}
+            onChange={(e) => handleNodeChange('strokeDasharray', e.target.value)}
+            className="prop-input"
+          >
+            <option value="solid">{locale === 'zh' ? '实线' : 'Solid'}</option>
+            <option value="dashed">{locale === 'zh' ? '虚线' : 'Dashed'}</option>
+            <option value="dotted">{locale === 'zh' ? '点线' : 'Dotted'}</option>
+          </select>
         </div>
 
         <div className="prop-group">

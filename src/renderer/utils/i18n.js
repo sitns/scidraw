@@ -5,6 +5,7 @@ export const translations = {
       open: 'Open',
       save: 'Save',
       exportTikZ: 'Export TikZ',
+      exportPDF: 'Export PDF',
       newFile: 'New'
     },
     panels: {
@@ -73,6 +74,7 @@ export const translations = {
       open: '打开',
       save: '保存',
       exportTikZ: '导出 TikZ',
+      exportPDF: '导出 PDF',
       newFile: '新建'
     },
     panels: {

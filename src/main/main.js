@@ -10,6 +10,7 @@ const menuLabels = {
   save: '保存',
   saveAs: '另存为...',
   exportTikZ: '导出 TikZ...',
+  exportPDF: '导出 PDF...',
   exit: '退出',
   edit: '编辑',
   undo: '撤销',
@@ -41,6 +42,7 @@ function createMenu() {
         { label: menuLabels.saveAs, accelerator: 'CmdOrCtrl+Shift+S', click: () => mainWindow?.webContents.send('menu-save-as') },
         { type: 'separator' },
         { label: menuLabels.exportTikZ, accelerator: 'CmdOrCtrl+E', click: () => mainWindow?.webContents.send('menu-export-tikz') },
+        { label: menuLabels.exportPDF, accelerator: 'CmdOrCtrl+P', click: () => mainWindow?.webContents.send('menu-export-pdf') },
         { type: 'separator' },
         { label: menuLabels.exit, role: 'quit' }
       ]
@@ -191,6 +193,72 @@ ipcMain.handle('export-tikz', async (event, { content }) => {
     fs.writeFileSync(result.filePath, content, 'utf-8');
     log.info('TikZ exported:', result.filePath);
     return { success: true, filePath: result.filePath };
+  }
+  return { success: false };
+});
+
+ipcMain.handle('export-pdf', async (event, { svgContent, width, height }) => {
+  const result = await dialog.showSaveDialog(mainWindow, {
+    defaultPath: 'diagram.pdf',
+    filters: [{ name: 'PDF', extensions: ['pdf'] }]
+  });
+
+  if (!result.canceled && result.filePath) {
+    try {
+      const pdfDoc = await mainWindow.webContents.printToPDF({
+        printBackground: true,
+        pageSize: {
+          width: width * 1000,
+          height: height * 1000
+        },
+        margins: {
+          top: 0,
+          bottom: 0,
+          left: 0,
+          right: 0
+        }
+      });
+      
+      fs.writeFileSync(result.filePath, pdfDoc);
+      log.info('PDF exported:', result.filePath);
+      return { success: true, filePath: result.filePath };
+    } catch (error) {
+      log.error('PDF export failed:', error);
+      return { success: false, error: error.message };
+    }
+  }
+  return { success: false };
+});
+
+ipcMain.handle('export-pdf-from-svg', async (event, { svgString, width, height }) => {
+  const result = await dialog.showSaveDialog(mainWindow, {
+    defaultPath: 'diagram.pdf',
+    filters: [{ name: 'PDF', extensions: ['pdf'] }]
+  });
+
+  if (!result.canceled && result.filePath) {
+    try {
+      const pdfDoc = await mainWindow.webContents.printToPDF({
+        printBackground: true,
+        pageSize: {
+          width: Math.ceil(width / 72 * 25400),
+          height: Math.ceil(height / 72 * 25400)
+        },
+        margins: {
+          top: 0,
+          bottom: 0,
+          left: 0,
+          right: 0
+        }
+      });
+      
+      fs.writeFileSync(result.filePath, pdfDoc);
+      log.info('PDF exported:', result.filePath);
+      return { success: true, filePath: result.filePath };
+    } catch (error) {
+      log.error('PDF export failed:', error);
+      return { success: false, error: error.message };
+    }
   }
   return { success: false };
 });
