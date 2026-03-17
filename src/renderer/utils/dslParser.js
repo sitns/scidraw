@@ -36,7 +36,9 @@ export function parseDiagram(code) {
         label: edge.label || '',
         style: edge.style || 'solid',
         fromDir: edge.fromDir || 'auto',
-        toDir: edge.toDir || 'auto'
+        toDir: edge.toDir || 'auto',
+        curveType: edge.curveType || 'auto',
+        controlPoints: edge.controlPoints || []
       }))
     };
 
@@ -70,7 +72,9 @@ export function serializeDiagram(diagram) {
       label: edge.label || undefined,
       style: edge.style !== 'solid' ? edge.style : undefined,
       fromDir: edge.fromDir !== 'auto' ? edge.fromDir : undefined,
-      toDir: edge.toDir !== 'auto' ? edge.toDir : undefined
+      toDir: edge.toDir !== 'auto' ? edge.toDir : undefined,
+      curveType: edge.curveType !== 'auto' && edge.curveType ? edge.curveType : undefined,
+      controlPoints: edge.controlPoints && edge.controlPoints.length > 0 ? edge.controlPoints : undefined
     }))
   };
 

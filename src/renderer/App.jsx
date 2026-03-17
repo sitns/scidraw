@@ -477,6 +477,7 @@ edges: []
           <VisualCanvas 
             diagram={diagram} 
             onNodeMove={handleNodeMove}
+            onEdgeUpdate={handleUpdateEdge}
             selectedId={selectedId}
             onSelect={setSelectedId}
           />
@@ -623,11 +624,86 @@ function NodeShape({ node, selected, onMouseDown }) {
   );
 }
 
-function VisualCanvas({ diagram, onNodeMove, selectedId, onSelect }) {
+function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, selectedId, onSelect }) {
   const svgRef = useRef(null);
   const [dragging, setDragging] = useState(null);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [connecting, setConnecting] = useState(null);
+  const [draggingControlPoint, setDraggingControlPoint] = useState(null);
+
+  const canvas = diagram?.canvas || { width: 800, height: 600 };
+  const nodes = diagram?.nodes || [];
+  const edges = diagram?.edges || [];
+  const width = canvas.width || 800;
+  const height = canvas.height || 600;
+
+  useEffect(() => {
+    if (!draggingControlPoint) return;
+    
+    const handleGlobalMouseMove = (e) => {
+      const svg = svgRef.current;
+      if (!svg) return;
+      
+      const pt = svg.createSVGPoint();
+      pt.x = e.clientX;
+      pt.y = e.clientY;
+      const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+      
+      const { edgeId, index } = draggingControlPoint;
+      const edge = edges.find(ed => ed.id === edgeId);
+      if (edge) {
+        const newControlPoints = [...(edge.controlPoints || [])];
+        while (newControlPoints.length <= index) {
+          newControlPoints.push({ x: 0, y: 0 });
+        }
+        newControlPoints[index] = { x: svgP.x, y: svgP.y };
+        onEdgeUpdate(edgeId, { ...edge, controlPoints: newControlPoints });
+      }
+    };
+    
+    const handleGlobalMouseUp = () => {
+      setDraggingControlPoint(null);
+    };
+    
+    window.addEventListener('mousemove', handleGlobalMouseMove);
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMouseMove);
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [draggingControlPoint, edges, onEdgeUpdate]);
+
+  useEffect(() => {
+    if (!dragging) return;
+    
+    const handleGlobalMouseMove = (e) => {
+      const svg = svgRef.current;
+      if (!svg) return;
+      
+      const pt = svg.createSVGPoint();
+      pt.x = e.clientX;
+      pt.y = e.clientY;
+      const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+      
+      const newX = Math.max(0, svgP.x - offset.x);
+      const newY = Math.max(0, svgP.y - offset.y);
+      
+      onNodeMove(dragging, newX, newY);
+    };
+    
+    const handleGlobalMouseUp = () => {
+      setDragging(null);
+    };
+    
+    window.addEventListener('mousemove', handleGlobalMouseMove);
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMouseMove);
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [dragging, offset, onNodeMove]);
 
   if (!diagram) {
     return (
@@ -636,10 +712,6 @@ function VisualCanvas({ diagram, onNodeMove, selectedId, onSelect }) {
       </div>
     );
   }
-
-  const { canvas, nodes = [], edges = [] } = diagram;
-  const width = canvas?.width || 800;
-  const height = canvas?.height || 600;
 
   const handleMouseDown = (e, nodeId) => {
     if (e.button === 2) return;
@@ -662,24 +734,40 @@ function VisualCanvas({ diagram, onNodeMove, selectedId, onSelect }) {
     if (connecting) {
       return;
     }
-    
-    if (!dragging) return;
-    
-    const svg = svgRef.current;
-    const pt = svg.createSVGPoint();
-    pt.x = e.clientX;
-    pt.y = e.clientY;
-    const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-    
-    const newX = Math.max(0, svgP.x - offset.x);
-    const newY = Math.max(0, svgP.y - offset.y);
-    
-    onNodeMove(dragging, newX, newY);
   };
 
   const handleMouseUp = () => {
     setDragging(null);
     setConnecting(null);
+    setDraggingControlPoint(null);
+  };
+
+  const handleControlPointMouseDown = (e, edgeId, index) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onSelect(edgeId);
+    setDraggingControlPoint({ edgeId, index });
+  };
+
+  const handleAddControlPoint = (edgeId) => {
+    const edge = edges.find(ed => ed.id === edgeId);
+    if (edge) {
+      const edgeData = getEdgePath(edge);
+      const newPoint = {
+        x: (edgeData.start.x + edgeData.end.x) / 2,
+        y: (edgeData.start.y + edgeData.end.y) / 2
+      };
+      const newControlPoints = [...(edge.controlPoints || []), newPoint];
+      onEdgeUpdate(edgeId, { ...edge, controlPoints: newControlPoints });
+    }
+  };
+
+  const handleRemoveControlPoint = (edgeId, index) => {
+    const edge = edges.find(ed => ed.id === edgeId);
+    if (edge && edge.controlPoints) {
+      const newControlPoints = edge.controlPoints.filter((_, i) => i !== index);
+      onEdgeUpdate(edgeId, { ...edge, controlPoints: newControlPoints });
+    }
   };
 
   const getNodeAnchor = (node, direction) => {
@@ -749,54 +837,76 @@ function VisualCanvas({ diagram, onNodeMove, selectedId, onSelect }) {
   const getEdgePath = (edge) => {
     const fromNode = nodes.find(n => n.id === edge.from);
     const toNode = nodes.find(n => n.id === edge.to);
-    if (!fromNode || !toNode) return '';
+    if (!fromNode || !toNode) return { path: '', start: {x:0,y:0}, end: {x:0,y:0} };
     
     const anchors = getBestAnchor(fromNode, toNode, edge.fromDir || 'auto', edge.toDir || 'auto');
-    const { start, end } = anchors;
+    let { start, end } = anchors;
     
-    const midX = (start.x + end.x) / 2;
-    const midY = (start.y + end.y) / 2;
+    const curveType = edge.curveType || 'auto';
+    const controlPoints = edge.controlPoints || [];
     
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
+    let path;
     
-    let cp1x, cp1y, cp2x, cp2y;
-    
-    if (Math.abs(dx) > Math.abs(dy)) {
-      cp1x = start.x + dx * 0.5;
-      cp1y = start.y;
-      cp2x = end.x - dx * 0.5;
-      cp2y = end.y;
+    if (curveType === 'straight') {
+      path = `M ${start.x} ${start.y} L ${end.x} ${end.y}`;
+    } else if (curveType === 'manual' && controlPoints.length >= 1) {
+      path = `M ${start.x} ${start.y}`;
+      for (let i = 0; i < controlPoints.length; i++) {
+        path += ` L ${controlPoints[i].x} ${controlPoints[i].y}`;
+      }
+      path += ` L ${end.x} ${end.y}`;
+    } else if (curveType === 'bezier' && controlPoints.length >= 1) {
+      path = `M ${start.x} ${start.y} Q ${controlPoints[0].x} ${controlPoints[0].y} ${end.x} ${end.y}`;
+    } else if (curveType === 'bezier2' && controlPoints.length >= 2) {
+      path = `M ${start.x} ${start.y} C ${controlPoints[0].x} ${controlPoints[0].y} ${controlPoints[1].x} ${controlPoints[1].y} ${end.x} ${end.y}`;
     } else {
-      cp1x = start.x;
-      cp1y = start.y + dy * 0.5;
-      cp2x = end.x;
-      cp2y = end.y - dy * 0.5;
+      const midX = (start.x + end.x) / 2;
+      const midY = (start.y + end.y) / 2;
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      
+      let cp1x, cp1y, cp2x, cp2y;
+      
+      if (Math.abs(dx) > Math.abs(dy)) {
+        cp1x = start.x + dx * 0.5;
+        cp1y = start.y;
+        cp2x = end.x - dx * 0.5;
+        cp2y = end.y;
+      } else {
+        cp1x = start.x;
+        cp1y = start.y + dy * 0.5;
+        cp2x = end.x;
+        cp2y = end.y - dy * 0.5;
+      }
+      
+      path = `M ${start.x} ${start.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${end.x} ${end.y}`;
     }
     
     return {
-      path: `M ${start.x} ${start.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${end.x} ${end.y}`,
-      end: end,
-      start: start
+      path,
+      end,
+      start,
+      controlPoints
     };
   };
 
   return (
     <div 
-      className="canvas-container" 
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      onClick={(e) => {
-        if (e.target === e.currentTarget || e.target.tagName === 'svg') {
-          onSelect(null);
-        }
-      }}
+      className="canvas-container"
+      style={{ position: 'relative' }}
     >
       <svg 
         ref={svgRef}
         viewBox={`0 0 ${width} ${height}`}
-        style={{ background: canvas?.background || '#fff' }}
+        style={{ background: canvas?.background || '#fff', width: '100%', height: '100%' }}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onClick={(e) => {
+          if (e.target === e.currentTarget || e.target.tagName === 'svg') {
+            onSelect(null);
+          }
+        }}
       >
         <defs>
           <marker
@@ -817,6 +927,7 @@ function VisualCanvas({ diagram, onNodeMove, selectedId, onSelect }) {
           const toNode = nodes.find(n => n.id === edge.to);
           const midX = fromNode && toNode ? (fromNode.x + fromNode.width/2 + toNode.x + toNode.width/2) / 2 : 0;
           const midY = fromNode && toNode ? (fromNode.y + fromNode.height/2 + toNode.y + toNode.height/2) / 2 : 0;
+          const isSelected = selectedId === edge.id;
           
           const getStrokeDasharray = (style) => {
             switch (style) {
@@ -832,7 +943,7 @@ function VisualCanvas({ diagram, onNodeMove, selectedId, onSelect }) {
           return (
             <g 
               key={`edge-${i}`} 
-              className={`edge ${selectedId === edge.id ? 'selected' : ''}`}
+              className={`edge ${isSelected ? 'selected' : ''}`}
               onClick={(e) => {
                 e.stopPropagation();
                 onSelect(edge.id);
@@ -840,12 +951,43 @@ function VisualCanvas({ diagram, onNodeMove, selectedId, onSelect }) {
             >
               <path 
                 d={edgeData.path}
-                stroke={selectedId === edge.id ? '#007acc' : '#333'}
-                strokeWidth={selectedId === edge.id ? 3 : 1.5}
+                stroke={isSelected ? '#007acc' : '#333'}
+                strokeWidth={isSelected ? 3 : 1.5}
                 strokeDasharray={getStrokeDasharray(edge.style)}
                 fill="none"
                 markerEnd="url(#arrowhead)"
               />
+              {isSelected && edge.controlPoints && edge.controlPoints.length > 0 && edge.controlPoints.map((cp, idx) => (
+                <g key={`cp-${idx}`}>
+                  <circle 
+                    cx={cp.x} 
+                    cy={cp.y} 
+                    r={10} 
+                    fill="rgba(0, 122, 204, 0.3)" 
+                    stroke="#007acc" 
+                    strokeWidth={2}
+                    style={{ cursor: 'move', pointerEvents: 'all' }}
+                    onMouseDown={(e) => handleControlPointMouseDown(e, edge.id, idx)}
+                  />
+                  <circle 
+                    cx={cp.x} 
+                    cy={cp.y} 
+                    r={4} 
+                    fill="#007acc"
+                    style={{ pointerEvents: 'none' }}
+                  />
+                  <text 
+                    x={cp.x} 
+                    y={cp.y - 12} 
+                    fontSize={11} 
+                    fill="#007acc"
+                    textAnchor="middle"
+                    fontWeight="bold"
+                  >
+                    {idx + 1}
+                  </text>
+                </g>
+              ))}
               {edge.label && (
                 <text 
                   x={midX} 

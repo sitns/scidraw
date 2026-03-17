@@ -34,7 +34,9 @@ function NodePropertiesPanel({
         label: selectedEdge.label || '',
         style: selectedEdge.style || 'solid',
         fromDir: selectedEdge.fromDir || 'auto',
-        toDir: selectedEdge.toDir || 'auto'
+        toDir: selectedEdge.toDir || 'auto',
+        curveType: selectedEdge.curveType || 'auto',
+        controlPoints: selectedEdge.controlPoints || []
       });
     }
   }, [selectedEdge]);
@@ -71,10 +73,36 @@ function NodePropertiesPanel({
   const handleEdgeChange = (field, value) => {
     if (!selectedEdge) return;
     
-    const newData = { ...edgeFormData, [field]: value };
+    let newValue = value;
+    
+    if (field === 'curveType' && (value === 'bezier' || value === 'bezier2' || value === 'manual')) {
+      const currentCps = edgeFormData.controlPoints || [];
+      if (currentCps.length === 0) {
+        newValue = value;
+        const fromNode = nodes.find(n => n.id === selectedEdge.from);
+        const toNode = nodes.find(n => n.id === selectedEdge.to);
+        let defaultCps = [];
+        if (fromNode && toNode) {
+          const midX = (fromNode.x + fromNode.width/2 + toNode.x + toNode.width/2) / 2;
+          const midY = (fromNode.y + fromNode.height/2 + toNode.y + toNode.height/2) / 2;
+          if (value === 'bezier' || value === 'manual') {
+            defaultCps = [{ x: midX, y: midY - 30 }];
+          } else if (value === 'bezier2') {
+            defaultCps = [{ x: midX - 30, y: midY - 30 }, { x: midX + 30, y: midY - 30 }];
+          }
+        }
+        const newData = { ...edgeFormData, curveType: value, controlPoints: defaultCps };
+        setEdgeFormData(newData);
+        const updatedEdge = { ...selectedEdge, curveType: value, controlPoints: defaultCps };
+        onUpdateEdge(updatedEdge);
+        return;
+      }
+    }
+    
+    const newData = { ...edgeFormData, [field]: newValue };
     setEdgeFormData(newData);
 
-    const updatedEdge = { ...selectedEdge, [field]: value };
+    const updatedEdge = { ...selectedEdge, [field]: newValue };
     onUpdateEdge(updatedEdge);
   };
 
@@ -220,6 +248,78 @@ function NodePropertiesPanel({
             </select>
           </div>
 
+          <div className="prop-group">
+            <label className="prop-label">
+              {locale === 'zh' ? '曲线类型' : 'Curve Type'}
+            </label>
+            <select 
+              value={edgeFormData.curveType || 'auto'} 
+              onChange={(e) => handleEdgeChange('curveType', e.target.value)}
+              className="prop-input"
+            >
+              <option value="auto">{locale === 'zh' ? '自动曲线' : 'Auto Curve'}</option>
+              <option value="straight">{locale === 'zh' ? '直线' : 'Straight Line'}</option>
+              <option value="bezier">{locale === 'zh' ? '单贝塞尔曲线' : 'Single Bezier'}</option>
+              <option value="bezier2">{locale === 'zh' ? '双贝塞尔曲线' : 'Double Bezier'}</option>
+              <option value="manual">{locale === 'zh' ? '手动控制点' : 'Manual Points'}</option>
+            </select>
+          </div>
+
+          {(edgeFormData.curveType === 'bezier' || edgeFormData.curveType === 'bezier2' || edgeFormData.curveType === 'manual') && (
+            <div className="prop-group">
+              <label className="prop-label">
+                {locale === 'zh' ? '控制点' : 'Control Points'}
+              </label>
+              <div className="control-points-list">
+                {(edgeFormData.controlPoints || []).map((cp, idx) => (
+                  <div key={idx} className="control-point-row">
+                    <span className="cp-label">{idx + 1}:</span>
+                    <input 
+                      type="number" 
+                      value={Math.round(cp.x)} 
+                      onChange={(e) => {
+                        const newCps = [...edgeFormData.controlPoints];
+                        newCps[idx] = { ...newCps[idx], x: parseInt(e.target.value) || 0 };
+                        handleEdgeChange('controlPoints', newCps);
+                      }}
+                      className="prop-input cp-input"
+                      placeholder="X"
+                    />
+                    <input 
+                      type="number" 
+                      value={Math.round(cp.y)} 
+                      onChange={(e) => {
+                        const newCps = [...edgeFormData.controlPoints];
+                        newCps[idx] = { ...newCps[idx], y: parseInt(e.target.value) || 0 };
+                        handleEdgeChange('controlPoints', newCps);
+                      }}
+                      className="prop-input cp-input"
+                      placeholder="Y"
+                    />
+                    <button 
+                      className="cp-delete"
+                      onClick={() => {
+                        const newCps = edgeFormData.controlPoints.filter((_, i) => i !== idx);
+                        handleEdgeChange('controlPoints', newCps);
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                <button 
+                  className="cp-add"
+                  onClick={() => {
+                    const newCps = [...(edgeFormData.controlPoints || []), { x: 100, y: 100 }];
+                    handleEdgeChange('controlPoints', newCps);
+                  }}
+                >
+                  {locale === 'zh' ? '+ 添加控制点' : '+ Add Control Point'}
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="prop-actions">
             <button 
               className="prop-btn delete"
@@ -300,6 +400,51 @@ function NodePropertiesPanel({
           }
           .prop-btn.delete:hover {
             background: #d32f2f;
+          }
+          .control-points-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+          }
+          .control-point-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+          }
+          .cp-label {
+            font-size: 11px;
+            color: #969696;
+            width: 20px;
+          }
+          .cp-input {
+            width: 50px !important;
+            padding: 4px !important;
+            font-size: 11px !important;
+          }
+          .cp-delete {
+            width: 20px;
+            height: 20px;
+            padding: 0;
+            background: #c62828;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 1;
+          }
+          .cp-add {
+            margin-top: 6px;
+            padding: 6px;
+            background: #0e639c;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+          }
+          .cp-add:hover {
+            background: #1177bb;
           }
         `}</style>
       </div>
