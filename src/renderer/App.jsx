@@ -629,7 +629,8 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, selectedId, onSelect 
   const [dragging, setDragging] = useState(null);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [connecting, setConnecting] = useState(null);
-  const [draggingControlPoint, setDraggingControlPoint] = useState(null);
+  const [draggingCP, setDraggingCP] = useState(null);
+  const [, setForceUpdate] = useState(0);
 
   const canvas = diagram?.canvas || { width: 800, height: 600 };
   const nodes = diagram?.nodes || [];
@@ -637,42 +638,38 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, selectedId, onSelect 
   const width = canvas.width || 800;
   const height = canvas.height || 600;
 
-  useEffect(() => {
-    if (!draggingControlPoint) return;
+  const handleControlPointMouseDown = (e, edgeId, idx) => {
+    e.stopPropagation();
+    const edge = edges.find(ed => ed.id === edgeId);
+    if (edge && edge.controlPoints && edge.controlPoints[idx]) {
+      setDraggingCP({ edgeId, idx });
+    }
+    onSelect(edgeId);
+  };
+
+  const handleCanvasMouseMove = (e) => {
+    if (!draggingCP) return;
     
-    const handleGlobalMouseMove = (e) => {
-      const svg = svgRef.current;
-      if (!svg) return;
-      
-      const pt = svg.createSVGPoint();
-      pt.x = e.clientX;
-      pt.y = e.clientY;
-      const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-      
-      const { edgeId, index } = draggingControlPoint;
-      const edge = edges.find(ed => ed.id === edgeId);
-      if (edge) {
-        const newControlPoints = [...(edge.controlPoints || [])];
-        while (newControlPoints.length <= index) {
-          newControlPoints.push({ x: 0, y: 0 });
-        }
-        newControlPoints[index] = { x: svgP.x, y: svgP.y };
-        onEdgeUpdate(edgeId, { ...edge, controlPoints: newControlPoints });
-      }
-    };
+    const svg = svgRef.current;
+    if (!svg) return;
     
-    const handleGlobalMouseUp = () => {
-      setDraggingControlPoint(null);
-    };
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+    const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
     
-    window.addEventListener('mousemove', handleGlobalMouseMove);
-    window.addEventListener('mouseup', handleGlobalMouseUp);
-    
-    return () => {
-      window.removeEventListener('mousemove', handleGlobalMouseMove);
-      window.removeEventListener('mouseup', handleGlobalMouseUp);
-    };
-  }, [draggingControlPoint, edges, onEdgeUpdate]);
+    const edge = edges.find(ed => ed.id === draggingCP.edgeId);
+    if (edge) {
+      const newControlPoints = [...(edge.controlPoints || [])];
+      newControlPoints[draggingCP.idx] = { x: svgP.x, y: svgP.y };
+      onEdgeUpdate({ ...edge, controlPoints: newControlPoints });
+      setForceUpdate(n => n + 1);
+    }
+  };
+
+  const handleCanvasMouseUp = () => {
+    setDraggingCP(null);
+  };
 
   useEffect(() => {
     if (!dragging) return;
@@ -734,19 +731,13 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, selectedId, onSelect 
     if (connecting) {
       return;
     }
+    handleCanvasMouseMove(e);
   };
 
   const handleMouseUp = () => {
     setDragging(null);
     setConnecting(null);
-    setDraggingControlPoint(null);
-  };
-
-  const handleControlPointMouseDown = (e, edgeId, index) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onSelect(edgeId);
-    setDraggingControlPoint({ edgeId, index });
+    handleCanvasMouseUp();
   };
 
   const handleAddControlPoint = (edgeId) => {
@@ -758,7 +749,7 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, selectedId, onSelect 
         y: (edgeData.start.y + edgeData.end.y) / 2
       };
       const newControlPoints = [...(edge.controlPoints || []), newPoint];
-      onEdgeUpdate(edgeId, { ...edge, controlPoints: newControlPoints });
+      onEdgeUpdate({ ...edge, controlPoints: newControlPoints });
     }
   };
 
@@ -766,7 +757,7 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, selectedId, onSelect 
     const edge = edges.find(ed => ed.id === edgeId);
     if (edge && edge.controlPoints) {
       const newControlPoints = edge.controlPoints.filter((_, i) => i !== index);
-      onEdgeUpdate(edgeId, { ...edge, controlPoints: newControlPoints });
+      onEdgeUpdate({ ...edge, controlPoints: newControlPoints });
     }
   };
 
