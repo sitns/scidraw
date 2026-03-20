@@ -728,6 +728,9 @@ function NodeShape({ node, selected, onMouseDown, onLabelMouseDown }) {
   const textY = type === 'diamond' ? height / 2 : height / 2;
   const offsetX = labelOffset?.x || 0;
   const offsetY = labelOffset?.y || 0;
+  const fontSize = style?.fontSize || 14;
+  const fontWeight = style?.fontWeight || 'bold';
+  const fontFamily = style?.fontFamily || 'Arial';
   
   return (
     <g 
@@ -740,8 +743,9 @@ function NodeShape({ node, selected, onMouseDown, onLabelMouseDown }) {
         x={width / 2 + offsetX}
         y={textY - 6 + offsetY}
         textAnchor="middle"
-        fontSize="14"
-        fontWeight="bold"
+        fontSize={fontSize}
+        fontWeight={fontWeight}
+        fontFamily={fontFamily}
         fill="#000"
         cursor="move"
         onMouseDown={onLabelMouseDown}
@@ -753,7 +757,8 @@ function NodeShape({ node, selected, onMouseDown, onLabelMouseDown }) {
           x={width / 2 + offsetX}
           y={textY + 12 + offsetY}
           textAnchor="middle"
-          fontSize="10"
+          fontSize={Math.max(10, fontSize - 4)}
+          fontFamily={fontFamily}
           fill="#666"
         >
           {subtitle}
@@ -1192,7 +1197,9 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMo
                   x={midX + (edge.labelOffset?.x || 0)} 
                   y={midY - 8 + (edge.labelOffset?.y || 0)}
                   textAnchor="middle"
-                  fontSize="12"
+                  fontSize={edge.labelStyle?.fontSize || 12}
+                  fontWeight={edge.labelStyle?.fontWeight || 'normal'}
+                  fontFamily={edge.labelStyle?.fontFamily || 'Arial'}
                   fill={isSelected ? '#007acc' : '#333'}
                   cursor="move"
                   onMouseDown={(e) => handleLabelMouseDown(e, edge.id, 'edge')}
@@ -1241,6 +1248,7 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMo
               y={text.y}
               fontSize={text.fontSize || 14}
               fontWeight={text.fontWeight || 'normal'}
+              fontFamily={text.fontFamily || 'Arial'}
               fill={text.color || '#000000'}
             >
               {text.content}

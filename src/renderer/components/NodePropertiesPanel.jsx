@@ -30,7 +30,10 @@ function NodePropertiesPanel({
         label: selectedNode.label || '',
         subtitle: selectedNode.subtitle || '',
         labelOffsetX: selectedNode.labelOffset?.x || 0,
-        labelOffsetY: selectedNode.labelOffset?.y || 0
+        labelOffsetY: selectedNode.labelOffset?.y || 0,
+        fontSize: selectedNode.style?.fontSize || 14,
+        fontWeight: selectedNode.style?.fontWeight || 'bold',
+        fontFamily: selectedNode.style?.fontFamily || 'Arial'
       });
     }
   }, [selectedNode]);
@@ -47,7 +50,10 @@ function NodePropertiesPanel({
         curveType: selectedEdge.curveType || 'auto',
         controlPoints: selectedEdge.controlPoints || [],
         labelOffsetX: selectedEdge.labelOffset?.x || 0,
-        labelOffsetY: selectedEdge.labelOffset?.y || 0
+        labelOffsetY: selectedEdge.labelOffset?.y || 0,
+        fontSize: selectedEdge.labelStyle?.fontSize || 12,
+        fontWeight: selectedEdge.labelStyle?.fontWeight || 'normal',
+        fontFamily: selectedEdge.labelStyle?.fontFamily || 'Arial'
       });
     }
   }, [selectedEdge]);
@@ -58,6 +64,7 @@ function NodePropertiesPanel({
         content: selectedText.content || '',
         fontSize: selectedText.fontSize || 14,
         fontWeight: selectedText.fontWeight || 'normal',
+        fontFamily: selectedText.fontFamily || 'Arial',
         color: selectedText.color || '#000000',
         backgroundColor: selectedText.backgroundColor || 'transparent'
       });
@@ -89,6 +96,11 @@ function NodePropertiesPanel({
         ...updatedNode.style,
         [field]: value
       };
+    } else if (field === 'fontSize' || field === 'fontWeight' || field === 'fontFamily') {
+      updatedNode.style = {
+        ...updatedNode.style,
+        [field]: field === 'fontSize' ? parseInt(value) : value
+      };
     } else if (field === 'label') {
       updatedNode.label = value;
     } else if (field === 'subtitle') {
@@ -105,6 +117,10 @@ function NodePropertiesPanel({
 
     if (field === 'strokeWidth') {
       newValue = parseFloat(value) || 1.5;
+    }
+    
+    if (field === 'fontSize') {
+      newValue = parseInt(value) || 12;
     }
 
     if (field === 'curveType' && (value === 'bezier' || value === 'bezier2' || value === 'manual')) {
@@ -134,7 +150,18 @@ function NodePropertiesPanel({
     const newData = { ...edgeFormData, [field]: newValue };
     setEdgeFormData(newData);
 
-    const updatedEdge = { ...selectedEdge, [field]: newValue };
+    let updatedEdge;
+    if (field === 'fontSize' || field === 'fontWeight' || field === 'fontFamily') {
+      updatedEdge = { 
+        ...selectedEdge, 
+        labelStyle: {
+          ...selectedEdge.labelStyle,
+          [field]: newValue
+        }
+      };
+    } else {
+      updatedEdge = { ...selectedEdge, [field]: newValue };
+    }
     onUpdateEdge(updatedEdge);
   };
 
@@ -245,6 +272,56 @@ function NodePropertiesPanel({
               onChange={(e) => handleEdgeChange('label', e.target.value)}
               className="prop-input"
             />
+          </div>
+
+          <div className="prop-group">
+            <label className="prop-label">
+              {locale === 'zh' ? '标签字体' : 'Label Font'}
+            </label>
+            <select 
+              value={edgeFormData.fontFamily || 'Arial'} 
+              onChange={(e) => handleEdgeChange('fontFamily', e.target.value)}
+              className="prop-input"
+            >
+              <option value="Arial">Arial</option>
+              <option value="Times New Roman">Times New Roman</option>
+              <option value="Courier New">Courier New</option>
+              <option value="Georgia">Georgia</option>
+              <option value="Verdana">Verdana</option>
+              <option value="Tahoma">Tahoma</option>
+              <option value="SimSun">SimSun (宋体)</option>
+              <option value="SimHei">SimHei (黑体)</option>
+              <option value="Microsoft YaHei">Microsoft YaHei (微软雅黑)</option>
+            </select>
+          </div>
+
+          <div className="prop-row">
+            <div className="prop-group">
+              <label className="prop-label">
+                {locale === 'zh' ? '字号' : 'Font Size'}
+              </label>
+              <input 
+                type="number" 
+                value={edgeFormData.fontSize || 12} 
+                onChange={(e) => handleEdgeChange('fontSize', e.target.value)}
+                className="prop-input"
+                min="8"
+                max="36"
+              />
+            </div>
+            <div className="prop-group">
+              <label className="prop-label">
+                {locale === 'zh' ? '粗细' : 'Weight'}
+              </label>
+              <select 
+                value={edgeFormData.fontWeight || 'normal'} 
+                onChange={(e) => handleEdgeChange('fontWeight', e.target.value)}
+                className="prop-input"
+              >
+                <option value="normal">{locale === 'zh' ? '正常' : 'Normal'}</option>
+                <option value="bold">{locale === 'zh' ? '粗体' : 'Bold'}</option>
+              </select>
+            </div>
           </div>
 
           <div className="prop-group">
@@ -590,6 +667,27 @@ function NodePropertiesPanel({
 
           <div className="prop-group">
             <label className="prop-label">
+              {locale === 'zh' ? '字体' : 'Font Family'}
+            </label>
+            <select 
+              value={textFormData.fontFamily || 'Arial'} 
+              onChange={(e) => handleTextChange('fontFamily', e.target.value)}
+              className="prop-input"
+            >
+              <option value="Arial">Arial</option>
+              <option value="Times New Roman">Times New Roman</option>
+              <option value="Courier New">Courier New</option>
+              <option value="Georgia">Georgia</option>
+              <option value="Verdana">Verdana</option>
+              <option value="Tahoma">Tahoma</option>
+              <option value="SimSun">SimSun (宋体)</option>
+              <option value="SimHei">SimHei (黑体)</option>
+              <option value="Microsoft YaHei">Microsoft YaHei (微软雅黑)</option>
+            </select>
+          </div>
+
+          <div className="prop-group">
+            <label className="prop-label">
               {locale === 'zh' ? '字号' : 'Font Size'}
             </label>
             <input 
@@ -835,6 +933,56 @@ function NodePropertiesPanel({
             onChange={(e) => handleNodeChange('subtitle', e.target.value)}
             className="prop-input"
           />
+        </div>
+
+        <div className="prop-group">
+          <label className="prop-label">
+            {locale === 'zh' ? '字体' : 'Font Family'}
+          </label>
+          <select 
+            value={nodeFormData.fontFamily || 'Arial'} 
+            onChange={(e) => handleNodeChange('fontFamily', e.target.value)}
+            className="prop-input"
+          >
+            <option value="Arial">Arial</option>
+            <option value="Times New Roman">Times New Roman</option>
+            <option value="Courier New">Courier New</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Verdana">Verdana</option>
+            <option value="Tahoma">Tahoma</option>
+            <option value="SimSun">SimSun (宋体)</option>
+            <option value="SimHei">SimHei (黑体)</option>
+            <option value="Microsoft YaHei">Microsoft YaHei (微软雅黑)</option>
+          </select>
+        </div>
+
+        <div className="prop-row">
+          <div className="prop-group">
+            <label className="prop-label">
+              {locale === 'zh' ? '字号' : 'Font Size'}
+            </label>
+            <input 
+              type="number" 
+              value={nodeFormData.fontSize || 14} 
+              onChange={(e) => handleNodeChange('fontSize', e.target.value)}
+              className="prop-input"
+              min="8"
+              max="72"
+            />
+          </div>
+          <div className="prop-group">
+            <label className="prop-label">
+              {locale === 'zh' ? '粗细' : 'Weight'}
+            </label>
+            <select 
+              value={nodeFormData.fontWeight || 'bold'} 
+              onChange={(e) => handleNodeChange('fontWeight', e.target.value)}
+              className="prop-input"
+            >
+              <option value="normal">{locale === 'zh' ? '正常' : 'Normal'}</option>
+              <option value="bold">{locale === 'zh' ? '粗体' : 'Bold'}</option>
+            </select>
+          </div>
         </div>
 
         <div className="prop-row">

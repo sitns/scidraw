@@ -28,7 +28,10 @@ export function parseDiagram(code) {
           fill: node.style?.fill || '#ffffff',
           stroke: node.style?.stroke || '#000000',
           strokeWidth: node.style?.strokeWidth || 1,
-          strokeDasharray: node.style?.strokeDasharray || 'solid'
+          strokeDasharray: node.style?.strokeDasharray || 'solid',
+          fontSize: node.style?.fontSize || 14,
+          fontWeight: node.style?.fontWeight || 'bold',
+          fontFamily: node.style?.fontFamily || 'Arial'
         }
       })),
       edges: (parsed.edges || []).map((edge, index) => ({
@@ -37,6 +40,11 @@ export function parseDiagram(code) {
         to: edge.to,
         label: edge.label || '',
         labelOffset: edge.labelOffset || { x: 0, y: 0 },
+        labelStyle: {
+          fontSize: edge.labelStyle?.fontSize || 12,
+          fontWeight: edge.labelStyle?.fontWeight || 'normal',
+          fontFamily: edge.labelStyle?.fontFamily || 'Arial'
+        },
         style: edge.style || 'solid',
         strokeWidth: edge.strokeWidth || 1.5,
         strokeColor: edge.strokeColor || '#333333',
@@ -52,6 +60,7 @@ export function parseDiagram(code) {
         content: text.content || 'Text',
         fontSize: text.fontSize || 14,
         fontWeight: text.fontWeight || 'normal',
+        fontFamily: text.fontFamily || 'Arial',
         color: text.color || '#000000',
         backgroundColor: text.backgroundColor || 'transparent'
       }))
@@ -80,7 +89,10 @@ export function serializeDiagram(diagram) {
         fill: node.style.fill,
         stroke: node.style.stroke,
         strokeWidth: node.style.strokeWidth,
-        strokeDasharray: node.style.strokeDasharray !== 'solid' ? node.style.strokeDasharray : undefined
+        strokeDasharray: node.style.strokeDasharray !== 'solid' ? node.style.strokeDasharray : undefined,
+        fontSize: node.style.fontSize !== 14 ? node.style.fontSize : undefined,
+        fontWeight: node.style.fontWeight !== 'bold' ? node.style.fontWeight : undefined,
+        fontFamily: node.style.fontFamily !== 'Arial' ? node.style.fontFamily : undefined
       }
     })),
     edges: diagram.edges.map(edge => ({
@@ -88,6 +100,11 @@ export function serializeDiagram(diagram) {
       to: edge.to,
       label: edge.label || undefined,
       labelOffset: (edge.labelOffset?.x !== 0 || edge.labelOffset?.y !== 0) ? edge.labelOffset : undefined,
+      labelStyle: (edge.labelStyle?.fontSize !== 12 || edge.labelStyle?.fontWeight !== 'normal' || edge.labelStyle?.fontFamily !== 'Arial') ? {
+        fontSize: edge.labelStyle?.fontSize,
+        fontWeight: edge.labelStyle?.fontWeight,
+        fontFamily: edge.labelStyle?.fontFamily
+      } : undefined,
       style: edge.style !== 'solid' ? edge.style : undefined,
       strokeWidth: edge.strokeWidth !== 1.5 ? edge.strokeWidth : undefined,
       strokeColor: edge.strokeColor !== '#333333' ? edge.strokeColor : undefined,
@@ -103,6 +120,7 @@ export function serializeDiagram(diagram) {
       content: text.content,
       fontSize: text.fontSize !== 14 ? text.fontSize : undefined,
       fontWeight: text.fontWeight !== 'normal' ? text.fontWeight : undefined,
+      fontFamily: text.fontFamily !== 'Arial' ? text.fontFamily : undefined,
       color: text.color !== '#000000' ? text.color : undefined,
       backgroundColor: text.backgroundColor !== 'transparent' ? text.backgroundColor : undefined
     })) : undefined
