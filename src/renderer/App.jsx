@@ -777,6 +777,8 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMo
   const [draggingCP, setDraggingCP] = useState(null);
   const [draggingLabel, setDraggingLabel] = useState(null);
   const [labelStartPos, setLabelStartPos] = useState(null);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
   const [, setForceUpdate] = useState(0);
 
   const canvas = diagram?.canvas || { width: 800, height: 600 };
@@ -785,6 +787,22 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMo
   const texts = diagram?.texts || [];
   const width = canvas.width || 800;
   const height = canvas.height || 600;
+
+  const handleWheel = useCallback((e) => {
+    if (e.ctrlKey) {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.1 : 0.1;
+      setZoom(prev => Math.max(0.25, Math.min(3, prev + delta)));
+    }
+  }, []);
+
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (svg) {
+      svg.addEventListener('wheel', handleWheel, { passive: false });
+      return () => svg.removeEventListener('wheel', handleWheel);
+    }
+  }, [handleWheel]);
 
   const handleControlPointMouseDown = (e, edgeId, idx) => {
     e.stopPropagation();
@@ -1094,6 +1112,11 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMo
     };
   };
 
+  const scaledWidth = width / zoom;
+  const scaledHeight = height / zoom;
+  const viewBoxX = -pan.x / zoom;
+  const viewBoxY = -pan.y / zoom;
+
   return (
     <div 
       className="canvas-container"
@@ -1101,7 +1124,7 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMo
     >
       <svg 
         ref={svgRef}
-        viewBox={`0 0 ${width} ${height}`}
+        viewBox={`${viewBoxX} ${viewBoxY} ${scaledWidth} ${scaledHeight}`}
         style={{ background: canvas?.background || '#fff', width: '100%', height: '100%' }}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -1268,6 +1291,31 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMo
           </g>
         ))}
       </svg>
+      
+      <div className="zoom-controls">
+        <button 
+          className="zoom-btn"
+          onClick={() => setZoom(prev => Math.min(3, prev + 0.1))}
+          title="放大 (Ctrl++)"
+        >
+          +
+        </button>
+        <span className="zoom-level">{Math.round(zoom * 100)}%</span>
+        <button 
+          className="zoom-btn"
+          onClick={() => setZoom(prev => Math.max(0.25, prev - 0.1))}
+          title="缩小 (Ctrl+-)"
+        >
+          -
+        </button>
+        <button 
+          className="zoom-btn"
+          onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
+          title="重置缩放 (Ctrl+0)"
+        >
+          1:1
+        </button>
+      </div>
     </div>
   );
 }
