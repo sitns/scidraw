@@ -178,6 +178,19 @@
   marker-end: url(#arrowhead);
 }
 
+.canvas-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.canvas-container svg {
+  cursor: grab;
+}
+
+.canvas-container svg:active {
+  cursor: grabbing;
+}
+
 .zoom-controls {
   position: absolute;
   bottom: 16px;
@@ -190,6 +203,7 @@
   border-radius: 6px;
   padding: 6px 10px;
   z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
 .zoom-btn {

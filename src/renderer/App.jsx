@@ -779,6 +779,8 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMo
   const [labelStartPos, setLabelStartPos] = useState(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [, setForceUpdate] = useState(0);
 
   const canvas = diagram?.canvas || { width: 800, height: 600 };
@@ -789,7 +791,7 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMo
   const height = canvas.height || 600;
 
   const handleWheel = useCallback((e) => {
-    if (e.ctrlKey) {
+    if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
       const delta = e.deltaY > 0 ? -0.1 : 0.1;
       setZoom(prev => Math.max(0.25, Math.min(3, prev + delta)));
@@ -797,12 +799,41 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMo
   }, []);
 
   useEffect(() => {
-    const svg = svgRef.current;
-    if (svg) {
-      svg.addEventListener('wheel', handleWheel, { passive: false });
-      return () => svg.removeEventListener('wheel', handleWheel);
+    const container = svgRef.current?.parentElement;
+    if (container) {
+      container.addEventListener('wheel', handleWheel, { passive: false });
+      return () => container.removeEventListener('wheel', handleWheel);
     }
   }, [handleWheel]);
+
+  const handlePanStart = useCallback((e) => {
+    if (e.button === 1 || (e.button === 0 && e.altKey)) {
+      e.preventDefault();
+      setIsPanning(true);
+      setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+    }
+  }, [pan]);
+
+  const handlePanMove = useCallback((e) => {
+    if (isPanning) {
+      setPan({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
+    }
+  }, [isPanning, panStart]);
+
+  const handlePanEnd = useCallback(() => {
+    setIsPanning(false);
+  }, []);
+
+  useEffect(() => {
+    if (isPanning) {
+      window.addEventListener('mousemove', handlePanMove);
+      window.addEventListener('mouseup', handlePanEnd);
+      return () => {
+        window.removeEventListener('mousemove', handlePanMove);
+        window.removeEventListener('mouseup', handlePanEnd);
+      };
+    }
+  }, [isPanning, handlePanMove, handlePanEnd]);
 
   const handleControlPointMouseDown = (e, edgeId, idx) => {
     e.stopPropagation();
@@ -1125,7 +1156,13 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMo
       <svg 
         ref={svgRef}
         viewBox={`${viewBoxX} ${viewBoxY} ${scaledWidth} ${scaledHeight}`}
-        style={{ background: canvas?.background || '#fff', width: '100%', height: '100%' }}
+        style={{ 
+          background: canvas?.background || '#fff', 
+          width: '100%', 
+          height: '100%',
+          cursor: isPanning ? 'grabbing' : 'default'
+        }}
+        onMouseDown={handlePanStart}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
