@@ -771,6 +771,7 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMo
   const [connecting, setConnecting] = useState(null);
   const [draggingCP, setDraggingCP] = useState(null);
   const [draggingLabel, setDraggingLabel] = useState(null);
+  const [labelStartPos, setLabelStartPos] = useState(null);
   const [, setForceUpdate] = useState(0);
 
   const canvas = diagram?.canvas || { width: 800, height: 600 };
@@ -791,7 +792,14 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMo
 
   const handleLabelMouseDown = (e, itemId, type) => {
     e.stopPropagation();
+    const svg = svgRef.current;
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+    const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+    
     setDraggingLabel({ id: itemId, type });
+    setLabelStartPos({ x: svgP.x, y: svgP.y });
     onSelect(itemId);
   };
 
@@ -864,29 +872,22 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMo
           const newY = Math.max(0, svgP.y - offset.y);
           onNodeMove(dragging, newX, newY);
         }
-      } else if (draggingLabel) {
+      } else if (draggingLabel && labelStartPos) {
         if (draggingLabel.type === 'node') {
           const node = nodes.find(n => n.id === draggingLabel.id);
           if (node) {
-            const centerX = node.x + node.width / 2;
-            const centerY = node.y + node.height / 2;
-            const offsetX = svgP.x - centerX;
-            const offsetY = svgP.y - centerY;
-            onNodeMove(draggingLabel.id, node.x, node.y);
-            onLabelMove(draggingLabel.id, 'node', offsetX, offsetY);
+            const deltaX = svgP.x - labelStartPos.x;
+            const deltaY = svgP.y - labelStartPos.y;
+            onLabelMove(draggingLabel.id, 'node', deltaX, deltaY);
+            setLabelStartPos({ x: svgP.x, y: svgP.y });
           }
         } else if (draggingLabel.type === 'edge') {
           const edge = edges.find(e => e.id === draggingLabel.id);
           if (edge) {
-            const fromNode = nodes.find(n => n.id === edge.from);
-            const toNode = nodes.find(n => n.id === edge.to);
-            if (fromNode && toNode) {
-              const midX = (fromNode.x + fromNode.width/2 + toNode.x + toNode.width/2) / 2;
-              const midY = (fromNode.y + fromNode.height/2 + toNode.y + toNode.height/2) / 2;
-              const offsetX = svgP.x - midX;
-              const offsetY = svgP.y - midY;
-              onLabelMove(draggingLabel.id, 'edge', offsetX, offsetY);
-            }
+            const deltaX = svgP.x - labelStartPos.x;
+            const deltaY = svgP.y - labelStartPos.y;
+            onLabelMove(draggingLabel.id, 'edge', deltaX, deltaY);
+            setLabelStartPos({ x: svgP.x, y: svgP.y });
           }
         }
       }
@@ -896,6 +897,7 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMo
       setDragging(null);
       setDraggingLabel(null);
       setDraggingType('node');
+      setLabelStartPos(null);
     };
     
     window.addEventListener('mousemove', handleGlobalMouseMove);
@@ -905,7 +907,7 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMo
       window.removeEventListener('mousemove', handleGlobalMouseMove);
       window.removeEventListener('mouseup', handleGlobalMouseUp);
     };
-  }, [dragging, draggingLabel, draggingType, offset, onNodeMove, onTextMove, onLabelMove, texts, nodes, edges]);
+  }, [dragging, draggingLabel, draggingType, offset, labelStartPos, onNodeMove, onTextMove, onLabelMove, texts, nodes, edges]);
 
   if (!diagram) {
     return (
