@@ -793,18 +793,31 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMo
   const handleWheel = useCallback((e) => {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
+      e.stopPropagation();
       const delta = e.deltaY > 0 ? -0.1 : 0.1;
-      setZoom(prev => Math.max(0.25, Math.min(3, prev + delta)));
+      setZoom(prev => {
+        const newZoom = Math.max(0.25, Math.min(3, prev + delta));
+        return Math.round(newZoom * 100) / 100;
+      });
+      return false;
     }
   }, []);
 
   useEffect(() => {
-    const container = svgRef.current?.parentElement;
-    if (container) {
-      container.addEventListener('wheel', handleWheel, { passive: false });
-      return () => container.removeEventListener('wheel', handleWheel);
-    }
-  }, [handleWheel]);
+    const handleDocumentWheel = (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        setZoom(prev => {
+          const newZoom = Math.max(0.25, Math.min(3, prev + delta));
+          return Math.round(newZoom * 100) / 100;
+        });
+      }
+    };
+    
+    document.addEventListener('wheel', handleDocumentWheel, { passive: false });
+    return () => document.removeEventListener('wheel', handleDocumentWheel);
+  }, []);
 
   const handlePanStart = useCallback((e) => {
     if (e.button === 1 || (e.button === 0 && e.altKey)) {

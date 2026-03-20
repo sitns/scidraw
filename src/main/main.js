@@ -122,6 +122,20 @@ function createWindow() {
     title: 'SciDraw - Scientific Diagram Editor'
   });
 
+  // Disable default zoom behavior
+  mainWindow.webContents.setZoomFactor(1);
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.control && input.key === '=') {
+      event.preventDefault();
+    }
+    if (input.control && input.key === '-') {
+      event.preventDefault();
+    }
+    if (input.control && input.key === '0') {
+      event.preventDefault();
+    }
+  });
+
   const isDev = !app.isPackaged;
 
   if (isDev) {
