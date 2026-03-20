@@ -22,6 +22,9 @@ A scientific diagram editor combining code editing with visual drag-and-drop, su
 - **🎯 曲线控制点** - 贝塞尔曲线、手动控制点，自由调整连线弯曲形状
 - **📄 TikZ 导出** - 一键生成可编译的 LaTeX TikZ 代码，直接用于学术论文
 - **📑 PDF 导出** - 直接导出图表为 PDF 格式，方便分享和打印
+- **🎨 字体编辑** - 支持多种字体（宋体、黑体、Arial等）、字号、粗细设置
+- **📝 文本框** - 可插入独立文本元素，支持自定义样式
+- **🖱️ 拖拽标签** - 可自由移动节点、连线的标签位置
 - **🌐 中英文界面** - 完整的中英文支持，方便不同用户使用
 - **📖 新手引导** - 内置欢迎界面和使用教程，快速上手
 
@@ -277,6 +280,9 @@ npm run dist
 - **🎯 Curve Control Points** - Bezier curves, manual control points for custom curve shapes
 - **📄 TikZ Export** - Generate compilable LaTeX TikZ code for academic papers
 - **📑 PDF Export** - Export diagrams directly to PDF format for sharing and printing
+- **🎨 Font Editing** - Support multiple fonts (Arial, Times New Roman, SimSun, etc.), font size, weight
+- **📝 Text Boxes** - Insert standalone text elements with custom styling
+- **🖱️ Draggable Labels** - Freely move node and edge label positions
 - **🌐 i18n Support** - Complete Chinese and English interface
 - **📖 Beginner Guide** - Built-in welcome screen and tutorial
 

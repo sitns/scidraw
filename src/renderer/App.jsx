@@ -1155,8 +1155,8 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMo
             >
               <path
                 d={edgeData.path}
-                stroke={isSelected ? '#007acc' : (edge.strokeColor || '#333')}
-                strokeWidth={isSelected ? (edge.strokeWidth || 1.5) * 2 : (edge.strokeWidth || 1.5)}
+                stroke={edge.strokeColor || '#333'}
+                strokeWidth={isSelected ? (edge.strokeWidth || 1.5) * 1.5 : (edge.strokeWidth || 1.5)}
                 strokeDasharray={getStrokeDasharray(edge.style)}
                 fill="none"
                 markerEnd="url(#arrowhead)"
@@ -1200,7 +1200,7 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMo
                   fontSize={edge.labelStyle?.fontSize || 12}
                   fontWeight={edge.labelStyle?.fontWeight || 'normal'}
                   fontFamily={edge.labelStyle?.fontFamily || 'Arial'}
-                  fill={isSelected ? '#007acc' : '#333'}
+                  fill={edge.strokeColor || '#333'}
                   cursor="move"
                   onMouseDown={(e) => handleLabelMouseDown(e, edge.id, 'edge')}
                 >
