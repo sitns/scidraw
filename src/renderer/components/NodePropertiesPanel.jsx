@@ -658,27 +658,26 @@ function NodePropertiesPanel({
             </div>
           </div>
 
-          <div className="prop-row">
-            <div className="prop-group">
-              <label className="prop-label">X</label>
-              <input 
-                type="number" 
-                value={Math.round(selectedText.x) || 0} 
-                onChange={(e) => onUpdateText({ ...selectedText, x: parseInt(e.target.value) || 0 })}
-                className="prop-input"
-                min="0"
-              />
-            </div>
-            <div className="prop-group">
-              <label className="prop-label">Y</label>
-              <input 
-                type="number" 
-                value={Math.round(selectedText.y) || 0} 
-                onChange={(e) => onUpdateText({ ...selectedText, y: parseInt(e.target.value) || 0 })}
-                className="prop-input"
-                min="0"
-              />
-            </div>
+          <div className="prop-group">
+            <label className="prop-label">X</label>
+            <input 
+              type="number" 
+              value={Math.round(selectedText.x) || 0} 
+              onChange={(e) => onUpdateText({ ...selectedText, x: parseInt(e.target.value) || 0 })}
+              className="prop-input"
+              min="0"
+            />
+          </div>
+
+          <div className="prop-group">
+            <label className="prop-label">Y</label>
+            <input 
+              type="number" 
+              value={Math.round(selectedText.y) || 0} 
+              onChange={(e) => onUpdateText({ ...selectedText, y: parseInt(e.target.value) || 0 })}
+              className="prop-input"
+              min="0"
+            />
           </div>
 
           <div className="prop-actions">
