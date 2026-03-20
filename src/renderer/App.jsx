@@ -1200,7 +1200,7 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMo
                   fontSize={edge.labelStyle?.fontSize || 12}
                   fontWeight={edge.labelStyle?.fontWeight || 'normal'}
                   fontFamily={edge.labelStyle?.fontFamily || 'Arial'}
-                  fill={edge.strokeColor || '#333'}
+                  fill={edge.labelColor || '#333'}
                   cursor="move"
                   onMouseDown={(e) => handleLabelMouseDown(e, edge.id, 'edge')}
                 >

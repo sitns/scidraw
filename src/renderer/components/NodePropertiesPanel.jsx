@@ -45,6 +45,7 @@ function NodePropertiesPanel({
         style: selectedEdge.style || 'solid',
         strokeWidth: selectedEdge.strokeWidth || 1.5,
         strokeColor: selectedEdge.strokeColor || '#333333',
+        labelColor: selectedEdge.labelColor || '#333333',
         fromDir: selectedEdge.fromDir || 'auto',
         toDir: selectedEdge.toDir || 'auto',
         curveType: selectedEdge.curveType || 'auto',
@@ -369,6 +370,26 @@ function NodePropertiesPanel({
                 type="text"
                 value={edgeFormData.strokeColor || '#333333'}
                 onChange={(e) => handleEdgeChange('strokeColor', e.target.value)}
+                className="color-text"
+              />
+            </div>
+          </div>
+
+          <div className="prop-group">
+            <label className="prop-label">
+              {locale === 'zh' ? '标签颜色' : 'Label Color'}
+            </label>
+            <div className="color-input-wrapper">
+              <input
+                type="color"
+                value={edgeFormData.labelColor || '#333333'}
+                onChange={(e) => handleEdgeChange('labelColor', e.target.value)}
+                className="color-input"
+              />
+              <input
+                type="text"
+                value={edgeFormData.labelColor || '#333333'}
+                onChange={(e) => handleEdgeChange('labelColor', e.target.value)}
                 className="color-text"
               />
             </div>
