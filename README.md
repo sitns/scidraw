@@ -25,6 +25,7 @@ A scientific diagram editor combining code editing with visual drag-and-drop, su
 - **🎨 字体编辑** - 支持多种字体（宋体、黑体、Arial等）、字号、粗细设置
 - **📝 文本框** - 可插入独立文本元素，支持自定义样式
 - **🖱️ 拖拽标签** - 可自由移动节点、连线的标签位置
+- **🔍 画布缩放** - Ctrl+滚轮缩放画布，Alt+拖动平移
 - **🌐 中英文界面** - 完整的中英文支持，方便不同用户使用
 - **📖 新手引导** - 内置欢迎界面和使用教程，快速上手
 
@@ -55,9 +56,32 @@ npm run build:renderer
 npm run start
 ```
 
-#### 打包分发
+#### 打包成可执行文件 (Windows)
+
+**方法一：使用 electron-builder 自动打包**
 ```bash
 npm run dist
+```
+打包后的 exe 文件在 `dist` 目录中。
+
+**方法二：手动运行（无需打包）**
+```bash
+# 先构建
+npm run build:renderer
+
+# 然后直接运行 Electron
+npx electron .
+```
+
+**方法三：创建便携版**
+```bash
+npm run build:renderer
+mkdir -p dist/SciDraw
+cp -r node_modules dist/SciDraw/
+cp -r src dist-renderer package.json dist/SciDraw/
+# 创建启动脚本
+echo "@echo off\ncd /d \"%~dp0\"\nnpx electron ." > dist/SciDraw/start.bat
+```
 ```
 生成 Windows/macOS/Linux 可执行文件。
 
@@ -78,6 +102,19 @@ npm run dist
 │ [添加连线] │                  │                 │              │
 └────────────┴──────────────────┴─────────────────┴──────────────┘
 ```
+
+### 快捷键
+
+| 快捷键 | 功能 |
+|--------|------|
+| `Ctrl + 滚轮` | 缩放画布 |
+| `Alt + 左键拖动` | 平移画布 |
+| `中键拖动` | 平移画布 |
+| `Ctrl + N` | 新建文件 |
+| `Ctrl + O` | 打开文件 |
+| `Ctrl + S` | 保存文件 |
+| `Ctrl + E` | 导出 TikZ |
+| `Ctrl + P` | 导出 PDF |
 
 ### DSL 语法说明
 
@@ -283,6 +320,7 @@ npm run dist
 - **🎨 Font Editing** - Support multiple fonts (Arial, Times New Roman, SimSun, etc.), font size, weight
 - **📝 Text Boxes** - Insert standalone text elements with custom styling
 - **🖱️ Draggable Labels** - Freely move node and edge label positions
+- **🔍 Canvas Zoom** - Ctrl+scroll to zoom, Alt+drag to pan
 - **🌐 i18n Support** - Complete Chinese and English interface
 - **📖 Beginner Guide** - Built-in welcome screen and tutorial
 
@@ -313,11 +351,45 @@ npm run build:renderer
 npm run start
 ```
 
-#### Build Distribution
+#### Build as Executable (Windows)
+
+**Method 1: Using electron-builder**
 ```bash
 npm run dist
 ```
-Generates Windows/macOS/Linux executables.
+The packaged exe file will be in the `dist` directory.
+
+**Method 2: Run directly (no packaging needed)**
+```bash
+# Build first
+npm run build:renderer
+
+# Then run Electron directly
+npx electron .
+```
+
+**Method 3: Create portable version**
+```bash
+npm run build:renderer
+mkdir -p dist/SciDraw
+cp -r node_modules dist/SciDraw/
+cp -r src dist-renderer package.json dist/SciDraw/
+# Create start script
+echo "@echo off\ncd /d \"%~dp0\"\nnpx electron ." > dist/SciDraw/start.bat
+```
+
+### Keyboard Shortcuts
+
+| Shortcut | Function |
+|----------|----------|
+| `Ctrl + Scroll` | Zoom canvas |
+| `Alt + Left-click drag` | Pan canvas |
+| `Middle-click drag` | Pan canvas |
+| `Ctrl + N` | New file |
+| `Ctrl + O` | Open file |
+| `Ctrl + S` | Save file |
+| `Ctrl + E` | Export TikZ |
+| `Ctrl + P` | Export PDF |
 
 ### DSL Syntax
 
