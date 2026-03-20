@@ -5,14 +5,18 @@ function NodePropertiesPanel({
   locale, 
   selectedNode,
   selectedEdge,
+  selectedText,
   onUpdateNode, 
   onDeleteNode,
   onUpdateEdge,
   onDeleteEdge,
+  onUpdateText,
+  onDeleteText,
   nodes 
 }) {
   const [nodeFormData, setNodeFormData] = useState({});
   const [edgeFormData, setEdgeFormData] = useState({});
+  const [textFormData, setTextFormData] = useState({});
 
   useEffect(() => {
     if (selectedNode) {
@@ -24,7 +28,9 @@ function NodePropertiesPanel({
         strokeWidth: selectedNode.style?.strokeWidth || 2,
         strokeDasharray: selectedNode.style?.strokeDasharray || 'solid',
         label: selectedNode.label || '',
-        subtitle: selectedNode.subtitle || ''
+        subtitle: selectedNode.subtitle || '',
+        labelOffsetX: selectedNode.labelOffset?.x || 0,
+        labelOffsetY: selectedNode.labelOffset?.y || 0
       });
     }
   }, [selectedNode]);
@@ -39,10 +45,24 @@ function NodePropertiesPanel({
         fromDir: selectedEdge.fromDir || 'auto',
         toDir: selectedEdge.toDir || 'auto',
         curveType: selectedEdge.curveType || 'auto',
-        controlPoints: selectedEdge.controlPoints || []
+        controlPoints: selectedEdge.controlPoints || [],
+        labelOffsetX: selectedEdge.labelOffset?.x || 0,
+        labelOffsetY: selectedEdge.labelOffset?.y || 0
       });
     }
   }, [selectedEdge]);
+
+  useEffect(() => {
+    if (selectedText) {
+      setTextFormData({
+        content: selectedText.content || '',
+        fontSize: selectedText.fontSize || 14,
+        fontWeight: selectedText.fontWeight || 'normal',
+        color: selectedText.color || '#000000',
+        backgroundColor: selectedText.backgroundColor || 'transparent'
+      });
+    }
+  }, [selectedText]);
 
   const handleNodeChange = (field, value) => {
     if (!selectedNode) return;
@@ -118,7 +138,23 @@ function NodePropertiesPanel({
     onUpdateEdge(updatedEdge);
   };
 
-  if (!selectedNode && !selectedEdge) {
+  const handleTextChange = (field, value) => {
+    if (!selectedText) return;
+    
+    let newValue = value;
+    
+    if (field === 'fontSize') {
+      newValue = parseInt(value) || 14;
+    }
+
+    const newData = { ...textFormData, [field]: newValue };
+    setTextFormData(newData);
+
+    const updatedText = { ...selectedText, [field]: newValue };
+    onUpdateText(updatedText);
+  };
+
+  if (!selectedNode && !selectedEdge && !selectedText) {
     return (
       <div className="properties-panel">
         <div className="properties-header">
@@ -515,6 +551,246 @@ function NodePropertiesPanel({
             border-radius: 3px;
             font-size: 12px;
             font-family: monospace;
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  if (selectedText) {
+    return (
+      <div className="properties-panel">
+        <div className="properties-header">
+          <span>{locale === 'zh' ? '文本属性' : 'Text Properties'}</span>
+        </div>
+        <div className="properties-content">
+          
+          <div className="prop-group">
+            <label className="prop-label">ID</label>
+            <input 
+              type="text" 
+              value={selectedText.id} 
+              disabled 
+              className="prop-input disabled"
+            />
+          </div>
+
+          <div className="prop-group">
+            <label className="prop-label">
+              {locale === 'zh' ? '文本内容' : 'Text Content'}
+            </label>
+            <textarea 
+              value={textFormData.content || ''} 
+              onChange={(e) => handleTextChange('content', e.target.value)}
+              className="prop-input"
+              rows={3}
+              style={{ resize: 'vertical', minHeight: '60px' }}
+            />
+          </div>
+
+          <div className="prop-group">
+            <label className="prop-label">
+              {locale === 'zh' ? '字号' : 'Font Size'}
+            </label>
+            <input 
+              type="number" 
+              value={textFormData.fontSize || 14} 
+              onChange={(e) => handleTextChange('fontSize', e.target.value)}
+              className="prop-input"
+              min="8"
+              max="72"
+            />
+          </div>
+
+          <div className="prop-group">
+            <label className="prop-label">
+              {locale === 'zh' ? '字体粗细' : 'Font Weight'}
+            </label>
+            <select 
+              value={textFormData.fontWeight || 'normal'} 
+              onChange={(e) => handleTextChange('fontWeight', e.target.value)}
+              className="prop-input"
+            >
+              <option value="normal">{locale === 'zh' ? '正常' : 'Normal'}</option>
+              <option value="bold">{locale === 'zh' ? '粗体' : 'Bold'}</option>
+            </select>
+          </div>
+
+          <div className="prop-group">
+            <label className="prop-label">
+              {locale === 'zh' ? '文字颜色' : 'Text Color'}
+            </label>
+            <div className="color-input-wrapper">
+              <input 
+                type="color" 
+                value={textFormData.color || '#000000'} 
+                onChange={(e) => handleTextChange('color', e.target.value)}
+                className="color-input"
+              />
+              <input 
+                type="text" 
+                value={textFormData.color || '#000000'} 
+                onChange={(e) => handleTextChange('color', e.target.value)}
+                className="color-text"
+              />
+            </div>
+          </div>
+
+          <div className="prop-group">
+            <label className="prop-label">
+              {locale === 'zh' ? '背景颜色' : 'Background Color'}
+            </label>
+            <div className="color-input-wrapper">
+              <input 
+                type="color" 
+                value={textFormData.backgroundColor || '#ffffff'} 
+                onChange={(e) => handleTextChange('backgroundColor', e.target.value)}
+                className="color-input"
+              />
+              <select 
+                value={textFormData.backgroundColor || 'transparent'} 
+                onChange={(e) => handleTextChange('backgroundColor', e.target.value)}
+                className="prop-input"
+                style={{ flex: 1 }}
+              >
+                <option value="transparent">{locale === 'zh' ? '透明' : 'Transparent'}</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="prop-row">
+            <div className="prop-group">
+              <label className="prop-label">X</label>
+              <input 
+                type="number" 
+                value={Math.round(selectedText.x) || 0} 
+                onChange={(e) => onUpdateText({ ...selectedText, x: parseInt(e.target.value) || 0 })}
+                className="prop-input"
+                min="0"
+              />
+            </div>
+            <div className="prop-group">
+              <label className="prop-label">Y</label>
+              <input 
+                type="number" 
+                value={Math.round(selectedText.y) || 0} 
+                onChange={(e) => onUpdateText({ ...selectedText, y: parseInt(e.target.value) || 0 })}
+                className="prop-input"
+                min="0"
+              />
+            </div>
+          </div>
+
+          <div className="prop-actions">
+            <button 
+              className="prop-btn delete"
+              onClick={() => onDeleteText(selectedText.id)}
+            >
+              {locale === 'zh' ? '删除文本' : 'Delete Text'}
+            </button>
+          </div>
+
+        </div>
+
+        <style>{`
+          .properties-panel {
+            width: 220px;
+            background: #252526;
+            border-left: 1px solid #3e3e3e;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+          }
+          .properties-header {
+            padding: 10px 12px;
+            background: #2d2d2d;
+            border-bottom: 1px solid #3e3e3e;
+            font-size: 12px;
+            font-weight: 600;
+            color: #969696;
+          }
+          .properties-content {
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+          }
+          .prop-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+          }
+          .prop-row {
+            display: flex;
+            gap: 8px;
+          }
+          .prop-row .prop-group {
+            flex: 1;
+          }
+          .prop-label {
+            font-size: 11px;
+            color: #969696;
+            text-transform: uppercase;
+          }
+          .prop-input {
+            padding: 6px 8px;
+            background: #3e3e3e;
+            border: 1px solid #555;
+            color: #d4d4d4;
+            border-radius: 3px;
+            font-size: 12px;
+          }
+          .prop-input:focus {
+            outline: none;
+            border-color: #007acc;
+          }
+          .prop-input.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+          }
+          .color-input-wrapper {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+          }
+          .color-input {
+            width: 32px;
+            height: 28px;
+            padding: 0;
+            border: 1px solid #555;
+            border-radius: 3px;
+            cursor: pointer;
+          }
+          .color-text {
+            flex: 1;
+            padding: 6px 8px;
+            background: #3e3e3e;
+            border: 1px solid #555;
+            color: #d4d4d4;
+            border-radius: 3px;
+            font-size: 12px;
+            font-family: monospace;
+          }
+          .prop-actions {
+            margin-top: 8px;
+            padding-top: 12px;
+            border-top: 1px solid #3e3e3e;
+          }
+          .prop-btn {
+            width: 100%;
+            padding: 8px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s;
+          }
+          .prop-btn.delete {
+            background: #c62828;
+            color: #fff;
+          }
+          .prop-btn.delete:hover {
+            background: #d32f2f;
           }
         `}</style>
       </div>

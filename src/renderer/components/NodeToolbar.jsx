@@ -40,7 +40,7 @@ const NODE_PRESETS = [
   }
 ];
 
-function NodeToolbar({ locale, nodes, selectedId, onAddNode, onAddEdge, onDeleteNode }) {
+function NodeToolbar({ locale, nodes, selectedId, onAddNode, onAddEdge, onDeleteNode, onAddText }) {
   const [showAddEdge, setShowAddEdge] = useState(false);
   const [edgeFrom, setEdgeFrom] = useState('');
   const [edgeTo, setEdgeTo] = useState('');
@@ -62,11 +62,17 @@ function NodeToolbar({ locale, nodes, selectedId, onAddNode, onAddEdge, onDelete
     }
   };
 
+  const handleAddText = () => {
+    if (onAddText) {
+      onAddText(locale === 'zh' ? '文本' : 'Text');
+    }
+  };
+
   return (
     <div className="node-toolbar">
       <div className="toolbar-section">
         <div className="toolbar-section-title">
-          {locale === 'zh' ? '添加节点' : 'Add Node'}
+          {locale === 'zh' ? '添加元素' : 'Add Element'}
         </div>
         <div className="node-presets">
           {NODE_PRESETS.map((preset, i) => (
@@ -80,6 +86,14 @@ function NodeToolbar({ locale, nodes, selectedId, onAddNode, onAddEdge, onDelete
               <span className="preset-name">{preset.name[locale] || preset.name.zh}</span>
             </button>
           ))}
+          <button
+            className="preset-btn text-btn"
+            onClick={handleAddText}
+            title={locale === 'zh' ? '文本框' : 'Text Box'}
+          >
+            <span className="preset-icon">T</span>
+            <span className="preset-name">{locale === 'zh' ? '文本框' : 'Text Box'}</span>
+          </button>
         </div>
       </div>
 
@@ -255,6 +269,14 @@ function NodeToolbar({ locale, nodes, selectedId, onAddNode, onAddEdge, onDelete
 
         .delete-btn:hover {
           background: #d32f2f;
+        }
+
+        .text-btn {
+          background: #5c6bc0;
+        }
+
+        .text-btn:hover {
+          background: #7986cb;
         }
       `}</style>
     </div>

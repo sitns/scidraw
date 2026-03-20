@@ -319,6 +319,74 @@ function App() {
     setSelectedId(null);
   }, [diagram, handleVisualChange]);
 
+  const handleAddText = useCallback((content) => {
+    if (!diagram) return;
+
+    const newText = {
+      id: `text_${Date.now()}`,
+      x: 100,
+      y: 100,
+      content: content,
+      fontSize: 14,
+      fontWeight: 'normal',
+      color: '#000000',
+      backgroundColor: 'transparent'
+    };
+
+    handleVisualChange({
+      ...diagram,
+      texts: [...(diagram.texts || []), newText]
+    });
+    setSelectedId(newText.id);
+  }, [diagram, handleVisualChange]);
+
+  const handleUpdateText = useCallback((updatedText) => {
+    if (!diagram) return;
+    
+    const newTexts = (diagram.texts || []).map(text => 
+      text.id === updatedText.id ? updatedText : text
+    );
+    handleVisualChange({ ...diagram, texts: newTexts });
+  }, [diagram, handleVisualChange]);
+
+  const handleDeleteText = useCallback((textId) => {
+    if (!diagram) return;
+    
+    handleVisualChange({
+      ...diagram,
+      texts: (diagram.texts || []).filter(t => t.id !== textId)
+    });
+    setSelectedId(null);
+  }, [diagram, handleVisualChange]);
+
+  const handleLabelMove = useCallback((itemId, type, offsetX, offsetY) => {
+    if (!diagram) return;
+    
+    if (type === 'node') {
+      const newNodes = diagram.nodes.map(node => 
+        node.id === itemId ? { 
+          ...node, 
+          labelOffset: { 
+            x: (node.labelOffset?.x || 0) + offsetX, 
+            y: (node.labelOffset?.y || 0) + offsetY 
+          } 
+        } : node
+      );
+      handleVisualChange({ ...diagram, nodes: newNodes });
+    } else if (type === 'edge') {
+      const newEdges = diagram.edges.map(edge => 
+        edge.id === itemId ? { 
+          ...edge, 
+          labelOffset: { 
+            x: (edge.labelOffset?.x || 0) + offsetX, 
+            y: (edge.labelOffset?.y || 0) + offsetY 
+          } 
+        } : edge
+      );
+      handleVisualChange({ ...diagram, edges: newEdges });
+    }
+  }, [diagram, handleVisualChange]);
+
   const handleNodeMove = useCallback((nodeId, x, y) => {
     if (!diagram) return;
     const newNodes = diagram.nodes.map(node => 
@@ -495,6 +563,7 @@ edges: []
           onAddNode={handleAddNode}
           onAddEdge={handleAddEdge}
           onDeleteNode={handleDeleteNode}
+          onAddText={handleAddText}
         />
 
         <div className="panel" style={{ width: '40%' }}>
@@ -527,6 +596,8 @@ edges: []
             diagram={diagram} 
             onNodeMove={handleNodeMove}
             onEdgeUpdate={handleUpdateEdge}
+            onTextMove={handleUpdateText}
+            onLabelMove={handleLabelMove}
             selectedId={selectedId}
             onSelect={setSelectedId}
           />
@@ -536,11 +607,14 @@ edges: []
           locale={locale}
           selectedNode={diagram?.nodes?.find(n => n.id === selectedId)}
           selectedEdge={diagram?.edges?.find(e => e.id === selectedId)}
+          selectedText={diagram?.texts?.find(t => t.id === selectedId)}
           nodes={diagram?.nodes || []}
           onUpdateNode={handleUpdateNode}
           onDeleteNode={handleDeleteNode}
           onUpdateEdge={handleUpdateEdge}
           onDeleteEdge={handleDeleteEdge}
+          onUpdateText={handleUpdateText}
+          onDeleteText={handleDeleteText}
         />
       </div>
 
@@ -570,8 +644,8 @@ edges: []
   );
 }
 
-function NodeShape({ node, selected, onMouseDown }) {
-  const { x, y, width, height, type, label, subtitle, style } = node;
+function NodeShape({ node, selected, onMouseDown, onLabelMouseDown }) {
+  const { x, y, width, height, type, label, subtitle, style, labelOffset } = node;
   const fill = style?.fill || '#fff';
   const stroke = style?.stroke || '#000';
   const strokeWidth = style?.strokeWidth || 1;
@@ -652,6 +726,8 @@ function NodeShape({ node, selected, onMouseDown }) {
   };
 
   const textY = type === 'diamond' ? height / 2 : height / 2;
+  const offsetX = labelOffset?.x || 0;
+  const offsetY = labelOffset?.y || 0;
   
   return (
     <g 
@@ -661,19 +737,21 @@ function NodeShape({ node, selected, onMouseDown }) {
     >
       {renderShape()}
       <text
-        x={width / 2}
-        y={textY - 6}
+        x={width / 2 + offsetX}
+        y={textY - 6 + offsetY}
         textAnchor="middle"
         fontSize="14"
         fontWeight="bold"
         fill="#000"
+        cursor="move"
+        onMouseDown={onLabelMouseDown}
       >
         {label}
       </text>
       {subtitle && (
         <text
-          x={width / 2}
-          y={textY + 12}
+          x={width / 2 + offsetX}
+          y={textY + 12 + offsetY}
           textAnchor="middle"
           fontSize="10"
           fill="#666"
@@ -685,17 +763,20 @@ function NodeShape({ node, selected, onMouseDown }) {
   );
 }
 
-function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, selectedId, onSelect }) {
+function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMove, selectedId, onSelect }) {
   const svgRef = useRef(null);
   const [dragging, setDragging] = useState(null);
+  const [draggingType, setDraggingType] = useState('node');
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [connecting, setConnecting] = useState(null);
   const [draggingCP, setDraggingCP] = useState(null);
+  const [draggingLabel, setDraggingLabel] = useState(null);
   const [, setForceUpdate] = useState(0);
 
   const canvas = diagram?.canvas || { width: 800, height: 600 };
   const nodes = diagram?.nodes || [];
   const edges = diagram?.edges || [];
+  const texts = diagram?.texts || [];
   const width = canvas.width || 800;
   const height = canvas.height || 600;
 
@@ -708,32 +789,58 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, selectedId, onSelect 
     onSelect(edgeId);
   };
 
+  const handleLabelMouseDown = (e, itemId, type) => {
+    e.stopPropagation();
+    setDraggingLabel({ id: itemId, type });
+    onSelect(itemId);
+  };
+
+  const handleTextMouseDown = (e, textId) => {
+    e.stopPropagation();
+    const text = texts.find(t => t.id === textId);
+    if (text) {
+      const svg = svgRef.current;
+      const pt = svg.createSVGPoint();
+      pt.x = e.clientX;
+      pt.y = e.clientY;
+      const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+      
+      setDragging(textId);
+      setDraggingType('text');
+      setOffset({ x: svgP.x - text.x, y: svgP.y - text.y });
+    }
+    onSelect(textId);
+  };
+
   const handleCanvasMouseMove = (e) => {
-    if (!draggingCP) return;
-    
-    const svg = svgRef.current;
-    if (!svg) return;
-    
-    const pt = svg.createSVGPoint();
-    pt.x = e.clientX;
-    pt.y = e.clientY;
-    const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-    
-    const edge = edges.find(ed => ed.id === draggingCP.edgeId);
-    if (edge) {
-      const newControlPoints = [...(edge.controlPoints || [])];
-      newControlPoints[draggingCP.idx] = { x: svgP.x, y: svgP.y };
-      onEdgeUpdate({ ...edge, controlPoints: newControlPoints });
-      setForceUpdate(n => n + 1);
+    if (draggingCP || draggingLabel) {
+      const svg = svgRef.current;
+      if (!svg) return;
+      
+      const pt = svg.createSVGPoint();
+      pt.x = e.clientX;
+      pt.y = e.clientY;
+      const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+      
+      if (draggingCP) {
+        const edge = edges.find(ed => ed.id === draggingCP.edgeId);
+        if (edge) {
+          const newControlPoints = [...(edge.controlPoints || [])];
+          newControlPoints[draggingCP.idx] = { x: svgP.x, y: svgP.y };
+          onEdgeUpdate({ ...edge, controlPoints: newControlPoints });
+          setForceUpdate(n => n + 1);
+        }
+      }
     }
   };
 
   const handleCanvasMouseUp = () => {
     setDraggingCP(null);
+    setDraggingLabel(null);
   };
 
   useEffect(() => {
-    if (!dragging) return;
+    if (!dragging && !draggingLabel) return;
     
     const handleGlobalMouseMove = (e) => {
       const svg = svgRef.current;
@@ -744,14 +851,51 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, selectedId, onSelect 
       pt.y = e.clientY;
       const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
       
-      const newX = Math.max(0, svgP.x - offset.x);
-      const newY = Math.max(0, svgP.y - offset.y);
-      
-      onNodeMove(dragging, newX, newY);
+      if (dragging) {
+        if (draggingType === 'text') {
+          const newX = Math.max(0, svgP.x - offset.x);
+          const newY = Math.max(0, svgP.y - offset.y);
+          const text = texts.find(t => t.id === dragging);
+          if (text) {
+            onTextMove({ ...text, x: newX, y: newY });
+          }
+        } else {
+          const newX = Math.max(0, svgP.x - offset.x);
+          const newY = Math.max(0, svgP.y - offset.y);
+          onNodeMove(dragging, newX, newY);
+        }
+      } else if (draggingLabel) {
+        if (draggingLabel.type === 'node') {
+          const node = nodes.find(n => n.id === draggingLabel.id);
+          if (node) {
+            const centerX = node.x + node.width / 2;
+            const centerY = node.y + node.height / 2;
+            const offsetX = svgP.x - centerX;
+            const offsetY = svgP.y - centerY;
+            onNodeMove(draggingLabel.id, node.x, node.y);
+            onLabelMove(draggingLabel.id, 'node', offsetX, offsetY);
+          }
+        } else if (draggingLabel.type === 'edge') {
+          const edge = edges.find(e => e.id === draggingLabel.id);
+          if (edge) {
+            const fromNode = nodes.find(n => n.id === edge.from);
+            const toNode = nodes.find(n => n.id === edge.to);
+            if (fromNode && toNode) {
+              const midX = (fromNode.x + fromNode.width/2 + toNode.x + toNode.width/2) / 2;
+              const midY = (fromNode.y + fromNode.height/2 + toNode.y + toNode.height/2) / 2;
+              const offsetX = svgP.x - midX;
+              const offsetY = svgP.y - midY;
+              onLabelMove(draggingLabel.id, 'edge', offsetX, offsetY);
+            }
+          }
+        }
+      }
     };
     
     const handleGlobalMouseUp = () => {
       setDragging(null);
+      setDraggingLabel(null);
+      setDraggingType('node');
     };
     
     window.addEventListener('mousemove', handleGlobalMouseMove);
@@ -761,7 +905,7 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, selectedId, onSelect 
       window.removeEventListener('mousemove', handleGlobalMouseMove);
       window.removeEventListener('mouseup', handleGlobalMouseUp);
     };
-  }, [dragging, offset, onNodeMove]);
+  }, [dragging, draggingLabel, draggingType, offset, onNodeMove, onTextMove, onLabelMove, texts, nodes, edges]);
 
   if (!diagram) {
     return (
@@ -784,6 +928,7 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, selectedId, onSelect 
     const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
     
     setDragging(nodeId);
+    setDraggingType('node');
     setOffset({ x: svgP.x - node.x, y: svgP.y - node.y });
     onSelect(nodeId);
   };
@@ -1042,11 +1187,13 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, selectedId, onSelect 
               ))}
               {edge.label && (
                 <text 
-                  x={midX} 
-                  y={midY - 8}
+                  x={midX + (edge.labelOffset?.x || 0)} 
+                  y={midY - 8 + (edge.labelOffset?.y || 0)}
                   textAnchor="middle"
                   fontSize="12"
-                  fill="#333"
+                  fill={isSelected ? '#007acc' : '#333'}
+                  cursor="move"
+                  onMouseDown={(e) => handleLabelMouseDown(e, edge.id, 'edge')}
                 >
                   {edge.label}
                 </text>
@@ -1061,7 +1208,54 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, selectedId, onSelect 
             node={node}
             selected={selectedId === node.id}
             onMouseDown={(e) => handleMouseDown(e, node.id)}
+            onLabelMouseDown={(e) => handleLabelMouseDown(e, node.id, 'node')}
           />
+        ))}
+
+        {texts.map((text) => (
+          <g 
+            key={text.id}
+            className={`text-element ${selectedId === text.id ? 'selected' : ''}`}
+            onMouseDown={(e) => handleTextMouseDown(e, text.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect(text.id);
+            }}
+            style={{ cursor: 'move' }}
+          >
+            {text.backgroundColor && text.backgroundColor !== 'transparent' && (
+              <rect
+                x={text.x - 4}
+                y={text.y - (text.fontSize || 14) - 2}
+                width={text.content.length * (text.fontSize || 14) * 0.6 + 8}
+                height={(text.fontSize || 14) + 8}
+                fill={text.backgroundColor}
+                rx="3"
+                ry="3"
+              />
+            )}
+            <text
+              x={text.x}
+              y={text.y}
+              fontSize={text.fontSize || 14}
+              fontWeight={text.fontWeight || 'normal'}
+              fill={text.color || '#000000'}
+            >
+              {text.content}
+            </text>
+            {selectedId === text.id && (
+              <rect
+                x={text.x - 4}
+                y={text.y - (text.fontSize || 14) - 2}
+                width={text.content.length * (text.fontSize || 14) * 0.6 + 8}
+                height={(text.fontSize || 14) + 8}
+                fill="none"
+                stroke="#007acc"
+                strokeWidth="1"
+                strokeDasharray="4,2"
+              />
+            )}
+          </g>
         ))}
       </svg>
     </div>

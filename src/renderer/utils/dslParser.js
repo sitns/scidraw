@@ -23,6 +23,7 @@ export function parseDiagram(code) {
         height: node.height || 60,
         label: node.label || '',
         subtitle: node.subtitle || '',
+        labelOffset: node.labelOffset || { x: 0, y: 0 },
         style: {
           fill: node.style?.fill || '#ffffff',
           stroke: node.style?.stroke || '#000000',
@@ -35,6 +36,7 @@ export function parseDiagram(code) {
         from: edge.from,
         to: edge.to,
         label: edge.label || '',
+        labelOffset: edge.labelOffset || { x: 0, y: 0 },
         style: edge.style || 'solid',
         strokeWidth: edge.strokeWidth || 1.5,
         strokeColor: edge.strokeColor || '#333333',
@@ -42,6 +44,16 @@ export function parseDiagram(code) {
         toDir: edge.toDir || 'auto',
         curveType: edge.curveType || 'auto',
         controlPoints: edge.controlPoints || []
+      })),
+      texts: (parsed.texts || []).map((text, index) => ({
+        id: text.id || `text_${index}`,
+        x: text.x || 100,
+        y: text.y || 100,
+        content: text.content || 'Text',
+        fontSize: text.fontSize || 14,
+        fontWeight: text.fontWeight || 'normal',
+        color: text.color || '#000000',
+        backgroundColor: text.backgroundColor || 'transparent'
       }))
     };
 
@@ -63,6 +75,7 @@ export function serializeDiagram(diagram) {
       height: node.height,
       label: node.label,
       subtitle: node.subtitle || undefined,
+      labelOffset: (node.labelOffset?.x !== 0 || node.labelOffset?.y !== 0) ? node.labelOffset : undefined,
       style: {
         fill: node.style.fill,
         stroke: node.style.stroke,
@@ -74,6 +87,7 @@ export function serializeDiagram(diagram) {
       from: edge.from,
       to: edge.to,
       label: edge.label || undefined,
+      labelOffset: (edge.labelOffset?.x !== 0 || edge.labelOffset?.y !== 0) ? edge.labelOffset : undefined,
       style: edge.style !== 'solid' ? edge.style : undefined,
       strokeWidth: edge.strokeWidth !== 1.5 ? edge.strokeWidth : undefined,
       strokeColor: edge.strokeColor !== '#333333' ? edge.strokeColor : undefined,
@@ -81,7 +95,17 @@ export function serializeDiagram(diagram) {
       toDir: edge.toDir !== 'auto' ? edge.toDir : undefined,
       curveType: edge.curveType !== 'auto' && edge.curveType ? edge.curveType : undefined,
       controlPoints: edge.controlPoints && edge.controlPoints.length > 0 ? edge.controlPoints : undefined
-    }))
+    })),
+    texts: diagram.texts && diagram.texts.length > 0 ? diagram.texts.map(text => ({
+      id: text.id,
+      x: Math.round(text.x),
+      y: Math.round(text.y),
+      content: text.content,
+      fontSize: text.fontSize !== 14 ? text.fontSize : undefined,
+      fontWeight: text.fontWeight !== 'normal' ? text.fontWeight : undefined,
+      color: text.color !== '#000000' ? text.color : undefined,
+      backgroundColor: text.backgroundColor !== 'transparent' ? text.backgroundColor : undefined
+    })) : undefined
   };
 
   const cleaned = JSON.parse(JSON.stringify(obj));
