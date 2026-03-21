@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { t } from '../utils/i18n';
 
 function NodePropertiesPanel({ 
-  locale, 
+  locale,
+  width,
   selectedNode,
   selectedEdge,
   selectedText,
@@ -184,7 +185,7 @@ function NodePropertiesPanel({
 
   if (!selectedNode && !selectedEdge && !selectedText) {
     return (
-      <div className="properties-panel">
+      <div className="properties-panel" style={{ width: `${width || 220}px` }}>
         <div className="properties-header">
           <span>{locale === 'zh' ? '属性' : 'Properties'}</span>
         </div>
@@ -193,7 +194,7 @@ function NodePropertiesPanel({
         </div>
         <style>{`
           .properties-panel {
-            width: 220px;
+            width: ${width || 220}px;
             background: #252526;
             border-left: 1px solid #3e3e3e;
             display: flex;
@@ -223,7 +224,7 @@ function NodePropertiesPanel({
     const toNode = nodes.find(n => n.id === selectedEdge.to);
     
     return (
-      <div className="properties-panel">
+      <div className="properties-panel" style={{ width: `${width || 220}px` }}>
         <div className="properties-header">
           <span>{locale === 'zh' ? '连线属性' : 'Edge Properties'}</span>
         </div>
@@ -657,7 +658,7 @@ function NodePropertiesPanel({
 
   if (selectedText) {
     return (
-      <div className="properties-panel">
+      <div className="properties-panel" style={{ width: `${width || 220}px` }}>
         <div className="properties-header">
           <span>{locale === 'zh' ? '文本属性' : 'Text Properties'}</span>
         </div>
@@ -812,7 +813,7 @@ function NodePropertiesPanel({
 
         <style>{`
           .properties-panel {
-            width: 220px;
+            width: ${width || 220}px;
             background: #252526;
             border-left: 1px solid #3e3e3e;
             display: flex;
@@ -916,7 +917,7 @@ function NodePropertiesPanel({
   }
 
   return (
-    <div className="properties-panel">
+    <div className="properties-panel" style={{ width: `${width || 220}px` }}>
       <div className="properties-header">
         <span>{locale === 'zh' ? '节点属性' : 'Node Properties'}</span>
       </div>
@@ -1133,21 +1134,21 @@ function NodePropertiesPanel({
           >
             {locale === 'zh' ? '删除节点' : 'Delete Node'}
           </button>
+          </div>
+
         </div>
 
-      </div>
-
-      <style>{`
-        .properties-panel {
-          width: 220px;
-          background: #252526;
-          border-left: 1px solid #3e3e3e;
-          display: flex;
-          flex-direction: column;
-          overflow-y: auto;
-        }
-        .properties-header {
-          padding: 10px 12px;
+        <style>{`
+          .properties-panel {
+            width: ${width || 220}px;
+            background: #252526;
+            border-left: 1px solid #3e3e3e;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+          }
+          .properties-header {
+            padding: 10px 12px;
           background: #2d2d2d;
           border-bottom: 1px solid #3e3e3e;
           font-size: 12px;

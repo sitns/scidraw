@@ -78,6 +78,8 @@ function App() {
   const [showGuide, setShowGuide] = useState(false);
   const [monacoLoaded, setMonacoLoaded] = useState(false);
   const [monacoError, setMonacoError] = useState(false);
+  const [editorWidth, setEditorWidth] = useState(40); // 百分比
+  const [propertyWidth, setPropertyWidth] = useState(220); // 像素
   const editorContainerRef = useRef(null);
   const editorRef = useRef(null);
   const monacoRef = useRef(null);
@@ -87,6 +89,36 @@ function App() {
     setLocale(newLocale);
     setLocaleState(newLocale);
   }, []);
+
+  // 分隔条拖动处理
+  const handleDragStart = useCallback((e, type) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    let startEditorWidth = editorWidth;
+    let startPropertyWidth = propertyWidth;
+
+    const handleDrag = (moveEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const container = document.querySelector('.main-content');
+      const containerWidth = container?.offsetWidth || 1000;
+      
+      if (type === 'editor') {
+        const newWidth = Math.max(20, Math.min(60, startEditorWidth + (deltaX / containerWidth) * 100));
+        setEditorWidth(newWidth);
+      } else if (type === 'property') {
+        const newWidth = Math.max(180, Math.min(400, startPropertyWidth - deltaX));
+        setPropertyWidth(newWidth);
+      }
+    };
+
+    const handleDragEnd = () => {
+      window.removeEventListener('mousemove', handleDrag);
+      window.removeEventListener('mouseup', handleDragEnd);
+    };
+
+    window.addEventListener('mousemove', handleDrag);
+    window.addEventListener('mouseup', handleDragEnd);
+  }, [editorWidth, propertyWidth]);
 
   useEffect(() => {
     const loadMonaco = async () => {
@@ -566,7 +598,7 @@ edges: []
           onAddText={handleAddText}
         />
 
-        <div className="panel" style={{ width: '40%' }}>
+        <div className="panel" style={{ width: `${editorWidth}%` }}>
           <div className="panel-header">
             <span className="panel-title">{t('panels.codeEditor', locale)}</span>
           </div>
@@ -581,7 +613,13 @@ edges: []
           </div>
         </div>
 
-        <div className="panel" style={{ flex: 1, borderRight: 'none' }}>
+        <div 
+          className="resize-handle"
+          onMouseDown={(e) => handleDragStart(e, 'editor')}
+          title={locale === 'zh' ? '拖动调整大小' : 'Drag to resize'}
+        />
+
+        <div className="panel canvas-panel" style={{ flex: 1 }}>
           <div className="panel-header">
             <span className="panel-title">{t('panels.visualCanvas', locale)}</span>
             <button 
@@ -603,8 +641,15 @@ edges: []
           />
         </div>
 
+        <div 
+          className="resize-handle"
+          onMouseDown={(e) => handleDragStart(e, 'property')}
+          title={locale === 'zh' ? '拖动调整大小' : 'Drag to resize'}
+        />
+
         <NodePropertiesPanel 
           locale={locale}
+          width={propertyWidth}
           selectedNode={diagram?.nodes?.find(n => n.id === selectedId)}
           selectedEdge={diagram?.edges?.find(e => e.id === selectedId)}
           selectedText={diagram?.texts?.find(t => t.id === selectedId)}

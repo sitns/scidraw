@@ -54,12 +54,32 @@
   overflow: hidden;
 }
 
+.resize-handle {
+  width: 6px;
+  background: #3e3e3e;
+  cursor: col-resize;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.resize-handle:hover {
+  background: #007acc;
+}
+
+.resize-handle:active {
+  background: #0098ff;
+}
+
 .panel {
   display: flex;
   flex-direction: column;
-  min-width: 300px;
+  min-width: 200px;
   border-right: 1px solid #3e3e3e;
   overflow: hidden;
+}
+
+.canvas-panel {
+  min-width: 300px;
 }
 
 .panel-header {
