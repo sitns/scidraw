@@ -467,12 +467,33 @@ function App() {
   const handleDeleteImage = useCallback((imageId) => {
     if (!diagram) return;
     
-    handleVisualChange({
+    const newDiagram = {
       ...diagram,
       images: (diagram.images || []).filter(img => img.id !== imageId)
-    });
+    };
+    setDiagram(newDiagram);
     setSelectedId(null);
-  }, [diagram, handleVisualChange]);
+  }, [diagram]);
+
+  const handleDeleteSelected = useCallback(() => {
+    if (!diagram || !selectedId) return;
+    
+    let newDiagram = { ...diagram };
+    
+    if (diagram.nodes.find(n => n.id === selectedId)) {
+      newDiagram.nodes = diagram.nodes.filter(n => n.id !== selectedId);
+      newDiagram.edges = diagram.edges.filter(e => e.from !== selectedId && e.to !== selectedId);
+    } else if (diagram.edges.find(e => e.id === selectedId)) {
+      newDiagram.edges = diagram.edges.filter(e => e.id !== selectedId);
+    } else if (diagram.texts.find(t => t.id === selectedId)) {
+      newDiagram.texts = diagram.texts.filter(t => t.id !== selectedId);
+    } else if (diagram.images.find(i => i.id === selectedId)) {
+      newDiagram.images = (diagram.images || []).filter(img => img.id !== selectedId);
+    }
+    
+    setDiagram(newDiagram);
+    setSelectedId(null);
+  }, [diagram, selectedId]);
 
   const handleLayerAction = useCallback((action) => {
     if (!diagram || !selectedId) return;
@@ -719,6 +740,7 @@ edges: []
           onAddNode={handleAddNode}
           onAddEdge={handleAddEdge}
           onDeleteNode={handleDeleteNode}
+          onDeleteSelected={handleDeleteSelected}
           onAddText={handleAddText}
           onAddImage={handleAddImage}
           onLayerAction={handleLayerAction}

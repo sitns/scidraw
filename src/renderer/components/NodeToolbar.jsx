@@ -40,7 +40,7 @@ const NODE_PRESETS = [
   }
 ];
 
-function NodeToolbar({ locale, nodes, selectedId, onAddNode, onAddEdge, onDeleteNode, onAddText, onAddImage, onLayerAction }) {
+function NodeToolbar({ locale, nodes, selectedId, onAddNode, onAddEdge, onDeleteNode, onDeleteSelected, onAddText, onAddImage, onLayerAction }) {
   const [showAddEdge, setShowAddEdge] = useState(false);
   const [edgeFrom, setEdgeFrom] = useState('');
   const [edgeTo, setEdgeTo] = useState('');
@@ -204,7 +204,7 @@ function NodeToolbar({ locale, nodes, selectedId, onAddNode, onAddEdge, onDelete
           </div>
           <button 
             className="preset-btn delete-btn"
-            onClick={() => onDeleteNode(selectedId)}
+            onClick={() => onDeleteSelected ? onDeleteSelected() : onDeleteNode(selectedId)}
           >
             <span className="preset-icon">🗑</span>
             <span className="preset-name">
