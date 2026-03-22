@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { t } from '../utils/i18n';
 
 const NODE_PRESETS = [
@@ -40,10 +40,11 @@ const NODE_PRESETS = [
   }
 ];
 
-function NodeToolbar({ locale, nodes, selectedId, onAddNode, onAddEdge, onDeleteNode, onAddText }) {
+function NodeToolbar({ locale, nodes, selectedId, onAddNode, onAddEdge, onDeleteNode, onAddText, onAddImage, onLayerAction }) {
   const [showAddEdge, setShowAddEdge] = useState(false);
   const [edgeFrom, setEdgeFrom] = useState('');
   const [edgeTo, setEdgeTo] = useState('');
+  const fileInputRef = useRef(null);
 
   const handleAddNode = (preset) => {
     const label = preset.name[locale] || preset.name.zh;
@@ -66,6 +67,44 @@ function NodeToolbar({ locale, nodes, selectedId, onAddNode, onAddEdge, onDelete
     if (onAddText) {
       onAddText(locale === 'zh' ? '文本' : 'Text');
     }
+  };
+
+  const handleAddImage = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxWidth = 400;
+          const maxHeight = 300;
+          let width = img.width;
+          let height = img.height;
+          
+          if (width > maxWidth) {
+            height = (maxWidth / width) * height;
+            width = maxWidth;
+          }
+          if (height > maxHeight) {
+            width = (maxHeight / height) * width;
+            height = maxHeight;
+          }
+          
+          onAddImage({
+            src: event.target.result,
+            width: Math.round(width),
+            height: Math.round(height)
+          });
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = '';
   };
 
   return (
@@ -94,6 +133,21 @@ function NodeToolbar({ locale, nodes, selectedId, onAddNode, onAddEdge, onDelete
             <span className="preset-icon">T</span>
             <span className="preset-name">{locale === 'zh' ? '文本框' : 'Text Box'}</span>
           </button>
+          <button
+            className="preset-btn image-btn"
+            onClick={handleAddImage}
+            title={locale === 'zh' ? '插入图片' : 'Insert Image'}
+          >
+            <span className="preset-icon">🖼</span>
+            <span className="preset-name">{locale === 'zh' ? '插入图片' : 'Insert Image'}</span>
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept="image/*"
+            style={{ display: 'none' }}
+          />
         </div>
       </div>
 
@@ -157,6 +211,40 @@ function NodeToolbar({ locale, nodes, selectedId, onAddNode, onAddEdge, onDelete
               {locale === 'zh' ? '删除选中' : 'Delete Selected'}
             </span>
           </button>
+          
+          <div className="toolbar-section-title" style={{ marginTop: '12px' }}>
+            {locale === 'zh' ? '图层' : 'Layer'}
+          </div>
+          <div className="layer-buttons">
+            <button 
+              className="layer-btn"
+              onClick={() => onLayerAction('bringToFront')}
+              title={locale === 'zh' ? '置于顶层' : 'Bring to Front'}
+            >
+              ⬆️⬆
+            </button>
+            <button 
+              className="layer-btn"
+              onClick={() => onLayerAction('bringForward')}
+              title={locale === 'zh' ? '上移一层' : 'Bring Forward'}
+            >
+              ⬆️
+            </button>
+            <button 
+              className="layer-btn"
+              onClick={() => onLayerAction('sendBackward')}
+              title={locale === 'zh' ? '下移一层' : 'Send Backward'}
+            >
+              ⬇️
+            </button>
+            <button 
+              className="layer-btn"
+              onClick={() => onLayerAction('sendToBack')}
+              title={locale === 'zh' ? '置于底层' : 'Send to Back'}
+            >
+              ⬇️⬇
+            </button>
+          </div>
         </div>
       )}
 
@@ -277,6 +365,37 @@ function NodeToolbar({ locale, nodes, selectedId, onAddNode, onAddEdge, onDelete
 
         .text-btn:hover {
           background: #7986cb;
+        }
+
+        .image-btn {
+          background: #00897b;
+        }
+
+        .image-btn:hover {
+          background: #00a99d;
+        }
+
+        .layer-buttons {
+          display: flex;
+          gap: 4px;
+          flex-wrap: wrap;
+        }
+
+        .layer-btn {
+          flex: 1;
+          min-width: 36px;
+          padding: 6px;
+          background: #3e3e3e;
+          border: none;
+          border-radius: 4px;
+          color: #d4d4d4;
+          cursor: pointer;
+          font-size: 12px;
+          transition: background 0.2s;
+        }
+
+        .layer-btn:hover {
+          background: #4e4e4e;
         }
       `}</style>
     </div>

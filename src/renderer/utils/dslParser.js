@@ -24,6 +24,7 @@ export function parseDiagram(code) {
         label: node.label || '',
         subtitle: node.subtitle || '',
         labelOffset: node.labelOffset || { x: 0, y: 0 },
+        zIndex: node.zIndex || 0,
         style: {
           fill: node.style?.fill || '#ffffff',
           stroke: node.style?.stroke || '#000000',
@@ -52,7 +53,8 @@ export function parseDiagram(code) {
         fromDir: edge.fromDir || 'auto',
         toDir: edge.toDir || 'auto',
         curveType: edge.curveType || 'auto',
-        controlPoints: edge.controlPoints || []
+        controlPoints: edge.controlPoints || [],
+        zIndex: edge.zIndex || 0
       })),
       texts: (parsed.texts || []).map((text, index) => ({
         id: text.id || `text_${index}`,
@@ -63,7 +65,18 @@ export function parseDiagram(code) {
         fontWeight: text.fontWeight || 'normal',
         fontFamily: text.fontFamily || 'Arial',
         color: text.color || '#000000',
-        backgroundColor: text.backgroundColor || 'transparent'
+        backgroundColor: text.backgroundColor || 'transparent',
+        zIndex: text.zIndex || 0
+      })),
+      images: (parsed.images || []).map((image, index) => ({
+        id: image.id || `image_${index}`,
+        x: image.x || 100,
+        y: image.y || 100,
+        width: image.width || 200,
+        height: image.height || 150,
+        src: image.src || '',
+        opacity: image.opacity || 1,
+        zIndex: image.zIndex || 0
       }))
     };
 
@@ -86,6 +99,7 @@ export function serializeDiagram(diagram) {
       label: node.label,
       subtitle: node.subtitle || undefined,
       labelOffset: (node.labelOffset?.x !== 0 || node.labelOffset?.y !== 0) ? node.labelOffset : undefined,
+      zIndex: node.zIndex !== 0 ? node.zIndex : undefined,
       style: {
         fill: node.style.fill,
         stroke: node.style.stroke,
@@ -113,7 +127,8 @@ export function serializeDiagram(diagram) {
       fromDir: edge.fromDir !== 'auto' ? edge.fromDir : undefined,
       toDir: edge.toDir !== 'auto' ? edge.toDir : undefined,
       curveType: edge.curveType !== 'auto' && edge.curveType ? edge.curveType : undefined,
-      controlPoints: edge.controlPoints && edge.controlPoints.length > 0 ? edge.controlPoints : undefined
+      controlPoints: edge.controlPoints && edge.controlPoints.length > 0 ? edge.controlPoints : undefined,
+      zIndex: edge.zIndex !== 0 ? edge.zIndex : undefined
     })),
     texts: diagram.texts && diagram.texts.length > 0 ? diagram.texts.map(text => ({
       id: text.id,
@@ -124,10 +139,93 @@ export function serializeDiagram(diagram) {
       fontWeight: text.fontWeight !== 'normal' ? text.fontWeight : undefined,
       fontFamily: text.fontFamily !== 'Arial' ? text.fontFamily : undefined,
       color: text.color !== '#000000' ? text.color : undefined,
-      backgroundColor: text.backgroundColor !== 'transparent' ? text.backgroundColor : undefined
+      backgroundColor: text.backgroundColor !== 'transparent' ? text.backgroundColor : undefined,
+      zIndex: text.zIndex !== 0 ? text.zIndex : undefined
+    })) : undefined,
+    images: diagram.images && diagram.images.length > 0 ? diagram.images.map(image => ({
+      id: image.id,
+      x: Math.round(image.x),
+      y: Math.round(image.y),
+      width: image.width,
+      height: image.height,
+      src: image.src,
+      opacity: image.opacity !== 1 ? image.opacity : undefined,
+      zIndex: image.zIndex !== 0 ? image.zIndex : undefined
     })) : undefined
   };
 
   const cleaned = JSON.parse(JSON.stringify(obj));
   return yaml.dump(cleaned, { indent: 2, lineWidth: -1 });
+}
+
+export function getAllElements(diagram) {
+  const elements = [];
+  
+  (diagram.nodes || []).forEach(node => {
+    elements.push({ type: 'node', data: node, zIndex: node.zIndex || 0 });
+  });
+  
+  (diagram.edges || []).forEach(edge => {
+    elements.push({ type: 'edge', data: edge, zIndex: edge.zIndex || 0 });
+  });
+  
+  (diagram.texts || []).forEach(text => {
+    elements.push({ type: 'text', data: text, zIndex: text.zIndex || 0 });
+  });
+  
+  (diagram.images || []).forEach(image => {
+    elements.push({ type: 'image', data: image, zIndex: image.zIndex || 0 });
+  });
+  
+  return elements.sort((a, b) => a.zIndex - b.zIndex);
+}
+
+export function updateElementZIndex(diagram, elementId, elementType, newZIndex) {
+  const newDiagram = { ...diagram };
+  
+  if (elementType === 'node') {
+    newDiagram.nodes = diagram.nodes.map(node => 
+      node.id === elementId ? { ...node, zIndex: newZIndex } : node
+    );
+  } else if (elementType === 'edge') {
+    newDiagram.edges = diagram.edges.map(edge => 
+      edge.id === elementId ? { ...edge, zIndex: newZIndex } : edge
+    );
+  } else if (elementType === 'text') {
+    newDiagram.texts = diagram.texts.map(text => 
+      text.id === elementId ? { ...text, zIndex: newZIndex } : text
+    );
+  } else if (elementType === 'image') {
+    newDiagram.images = diagram.images.map(image => 
+      image.id === elementId ? { ...image, zIndex: newZIndex } : image
+    );
+  }
+  
+  return newDiagram;
+}
+
+export function bringToFront(diagram, elementId, elementType) {
+  const allElements = getAllElements(diagram);
+  const maxZIndex = Math.max(...allElements.map(e => e.zIndex), 0);
+  return updateElementZIndex(diagram, elementId, elementType, maxZIndex + 1);
+}
+
+export function sendToBack(diagram, elementId, elementType) {
+  const allElements = getAllElements(diagram);
+  const minZIndex = Math.min(...allElements.map(e => e.zIndex), 0);
+  return updateElementZIndex(diagram, elementId, elementType, minZIndex - 1);
+}
+
+export function bringForward(diagram, elementId, elementType) {
+  const allElements = getAllElements(diagram);
+  const element = allElements.find(e => e.data.id === elementId && e.type === elementType);
+  if (!element) return diagram;
+  return updateElementZIndex(diagram, elementId, elementType, element.zIndex + 1);
+}
+
+export function sendBackward(diagram, elementId, elementType) {
+  const allElements = getAllElements(diagram);
+  const element = allElements.find(e => e.data.id === elementId && e.type === elementType);
+  if (!element) return diagram;
+  return updateElementZIndex(diagram, elementId, elementType, element.zIndex - 1);
 }

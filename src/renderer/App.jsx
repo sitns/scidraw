@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import yaml from 'js-yaml';
-import { parseDiagram, serializeDiagram } from './utils/dslParser';
+import { parseDiagram, serializeDiagram, bringToFront, sendToBack, bringForward, sendBackward } from './utils/dslParser';
 import { parseTikZ } from './utils/tikzParser';
 import { t, getLocale, setLocale } from './utils/i18n';
 import WelcomeScreen from './components/WelcomeScreen';
@@ -393,6 +393,82 @@ function App() {
     setSelectedId(null);
   }, [diagram, handleVisualChange]);
 
+  const handleAddImage = useCallback((imageData) => {
+    if (!diagram) return;
+
+    const newImage = {
+      id: `image_${Date.now()}`,
+      x: 100,
+      y: 100,
+      width: imageData.width || 200,
+      height: imageData.height || 150,
+      src: imageData.src,
+      opacity: 1,
+      zIndex: 0
+    };
+
+    handleVisualChange({
+      ...diagram,
+      images: [...(diagram.images || []), newImage]
+    });
+    setSelectedId(newImage.id);
+  }, [diagram, handleVisualChange]);
+
+  const handleUpdateImage = useCallback((updatedImage) => {
+    if (!diagram) return;
+    
+    const newImages = (diagram.images || []).map(image => 
+      image.id === updatedImage.id ? updatedImage : image
+    );
+    handleVisualChange({ ...diagram, images: newImages });
+  }, [diagram, handleVisualChange]);
+
+  const handleDeleteImage = useCallback((imageId) => {
+    if (!diagram) return;
+    
+    handleVisualChange({
+      ...diagram,
+      images: (diagram.images || []).filter(img => img.id !== imageId)
+    });
+    setSelectedId(null);
+  }, [diagram, handleVisualChange]);
+
+  const handleLayerAction = useCallback((action) => {
+    if (!diagram || !selectedId) return;
+    
+    let elementType = 'node';
+    let newDiagram = diagram;
+    
+    if (diagram.nodes.find(n => n.id === selectedId)) {
+      elementType = 'node';
+    } else if (diagram.edges.find(e => e.id === selectedId)) {
+      elementType = 'edge';
+    } else if (diagram.texts.find(t => t.id === selectedId)) {
+      elementType = 'text';
+    } else if (diagram.images.find(i => i.id === selectedId)) {
+      elementType = 'image';
+    }
+    
+    switch (action) {
+      case 'bringToFront':
+        newDiagram = bringToFront(diagram, selectedId, elementType);
+        break;
+      case 'sendToBack':
+        newDiagram = sendToBack(diagram, selectedId, elementType);
+        break;
+      case 'bringForward':
+        newDiagram = bringForward(diagram, selectedId, elementType);
+        break;
+      case 'sendBackward':
+        newDiagram = sendBackward(diagram, selectedId, elementType);
+        break;
+      default:
+        return;
+    }
+    
+    handleVisualChange(newDiagram);
+  }, [diagram, selectedId, handleVisualChange]);
+
   const handleLabelMove = useCallback((itemId, type, offsetX, offsetY) => {
     if (!diagram) return;
     
@@ -603,6 +679,8 @@ edges: []
           onAddEdge={handleAddEdge}
           onDeleteNode={handleDeleteNode}
           onAddText={handleAddText}
+          onAddImage={handleAddImage}
+          onLayerAction={handleLayerAction}
         />
 
         <div className="panel" style={{ width: `${editorWidth}%` }}>
@@ -642,6 +720,7 @@ edges: []
             onNodeMove={handleNodeMove}
             onEdgeUpdate={handleUpdateEdge}
             onTextMove={handleUpdateText}
+            onImageMove={handleUpdateImage}
             onLabelMove={handleLabelMove}
             selectedId={selectedId}
             onSelect={setSelectedId}
@@ -827,7 +906,7 @@ function NodeShape({ node, selected, onMouseDown, onLabelMouseDown }) {
   );
 }
 
-function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMove, selectedId, onSelect }) {
+function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onImageMove, onLabelMove, selectedId, onSelect }) {
   const svgRef = useRef(null);
   const [dragging, setDragging] = useState(null);
   const [draggingType, setDraggingType] = useState('node');
@@ -846,6 +925,7 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMo
   const nodes = diagram?.nodes || [];
   const edges = diagram?.edges || [];
   const texts = diagram?.texts || [];
+  const images = diagram?.images || [];
   const width = canvas.width || 800;
   const height = canvas.height || 600;
 
@@ -946,6 +1026,23 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMo
     onSelect(textId);
   };
 
+  const handleImageMouseDown = (e, imageId) => {
+    e.stopPropagation();
+    const image = images.find(img => img.id === imageId);
+    if (image) {
+      const svg = svgRef.current;
+      const pt = svg.createSVGPoint();
+      pt.x = e.clientX;
+      pt.y = e.clientY;
+      const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+      
+      setDragging(imageId);
+      setDraggingType('image');
+      setOffset({ x: svgP.x - image.x, y: svgP.y - image.y });
+    }
+    onSelect(imageId);
+  };
+
   const handleCanvasMouseMove = (e) => {
     if (draggingCP || draggingLabel) {
       const svg = svgRef.current;
@@ -992,6 +1089,13 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMo
           const text = texts.find(t => t.id === dragging);
           if (text) {
             onTextMove({ ...text, x: newX, y: newY });
+          }
+        } else if (draggingType === 'image') {
+          const newX = Math.max(0, svgP.x - offset.x);
+          const newY = Math.max(0, svgP.y - offset.y);
+          const image = images.find(img => img.id === dragging);
+          if (image) {
+            onImageMove({ ...image, x: newX, y: newY });
           }
         } else {
           const newX = Math.max(0, svgP.x - offset.x);
@@ -1394,6 +1498,41 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onLabelMo
                 fill="none"
                 stroke="#007acc"
                 strokeWidth="1"
+                strokeDasharray="4,2"
+              />
+            )}
+          </g>
+        ))}
+
+        {images.map((image) => (
+          <g 
+            key={image.id}
+            className={`image-element ${selectedId === image.id ? 'selected' : ''}`}
+            onMouseDown={(e) => handleImageMouseDown(e, image.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect(image.id);
+            }}
+            style={{ cursor: 'move' }}
+          >
+            <image
+              x={image.x}
+              y={image.y}
+              width={image.width}
+              height={image.height}
+              href={image.src}
+              opacity={image.opacity || 1}
+              preserveAspectRatio="xMidYMid meet"
+            />
+            {selectedId === image.id && (
+              <rect
+                x={image.x - 2}
+                y={image.y - 2}
+                width={image.width + 4}
+                height={image.height + 4}
+                fill="none"
+                stroke="#007acc"
+                strokeWidth="2"
                 strokeDasharray="4,2"
               />
             )}
