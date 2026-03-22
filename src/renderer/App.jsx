@@ -206,6 +206,10 @@ function App() {
       isEditorUpdating.current = false;
       try {
         const parsed = parseDiagram(newCode);
+        // Preserve existing image data
+        if (diagram && diagram.images && diagram.images.length > 0) {
+          parsed.images = diagram.images;
+        }
         setDiagram(parsed);
         setError(null);
       } catch (e) {
@@ -220,20 +224,26 @@ function App() {
       const parsed = parseDiagram(value);
       // Preserve existing image data when parsing from code
       if (diagram && diagram.images && diagram.images.length > 0) {
+        // Always keep existing images since YAML only has placeholders
         const existingImages = diagram.images;
-        parsed.images = parsed.images.map((img, idx) => {
-          const existing = existingImages.find(e => e.id === img.id);
-          if (existing && img.src === '[base64 image data]') {
-            return { ...img, src: existing.src };
-          }
-          return img;
-        });
-        // Keep images not in parsed (if any were added)
-        existingImages.forEach(existing => {
-          if (!parsed.images.find(img => img.id === existing.id)) {
-            parsed.images.push(existing);
-          }
-        });
+        if (!parsed.images || parsed.images.length === 0) {
+          parsed.images = existingImages;
+        } else {
+          // Merge: update position/size from code, keep src from state
+          parsed.images = parsed.images.map((img) => {
+            const existing = existingImages.find(e => e.id === img.id);
+            if (existing) {
+              return { ...img, src: existing.src };
+            }
+            return img;
+          });
+          // Add any images not in parsed
+          existingImages.forEach(existing => {
+            if (!parsed.images.find(img => img.id === existing.id)) {
+              parsed.images.push(existing);
+            }
+          });
+        }
       }
       setDiagram(parsed);
       setError(null);
