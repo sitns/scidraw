@@ -86,11 +86,21 @@ function App() {
   const editorRef = useRef(null);
   const monacoRef = useRef(null);
   const isEditorUpdating = useRef(false);
+  const syncDirectionRef = useRef(syncDirection);
+  const diagramRef = useRef(diagram);
 
   const handleLocaleChange = useCallback((newLocale) => {
     setLocale(newLocale);
     setLocaleState(newLocale);
   }, []);
+
+  useEffect(() => {
+    syncDirectionRef.current = syncDirection;
+  }, [syncDirection]);
+
+  useEffect(() => {
+    diagramRef.current = diagram;
+  }, [diagram]);
 
   // 分隔条拖动处理
   const handleDragStart = useCallback((e, type) => {
@@ -199,16 +209,16 @@ function App() {
     });
 
     editorRef.current.onDidChangeModelContent(() => {
-      if (syncDirection !== 'code-to-visual') return;
+      if (syncDirectionRef.current !== 'code-to-visual') return;
       isEditorUpdating.current = true;
       const newCode = editorRef.current.getValue();
       setCode(newCode);
       isEditorUpdating.current = false;
       try {
         const parsed = parseDiagram(newCode);
-        // Preserve existing image data
-        if (diagram && diagram.images && diagram.images.length > 0) {
-          parsed.images = diagram.images;
+        const currentDiagram = diagramRef.current;
+        if (currentDiagram && currentDiagram.images && currentDiagram.images.length > 0) {
+          parsed.images = currentDiagram.images;
         }
         setDiagram(parsed);
         setError(null);
@@ -1580,7 +1590,7 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onImageMo
         ))}
 
         {images.map((image) => (
-          <g 
+          <g
             key={image.id}
             className={`image-element ${selectedId === image.id ? 'selected' : ''}`}
             onMouseDown={(e) => handleImageMouseDown(e, image.id)}
@@ -1590,16 +1600,24 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onImageMo
             }}
             style={{ cursor: 'move' }}
           >
-            <image
+            <foreignObject
               x={image.x}
               y={image.y}
               width={image.width}
               height={image.height}
-              href={image.src}
-              xlinkHref={image.src}
-              opacity={image.opacity || 1}
-              preserveAspectRatio="xMidYMid meet"
-            />
+              style={{ overflow: 'visible', opacity: image.opacity || 1 }}
+            >
+              <img
+                src={image.src}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  display: 'block'
+                }}
+                alt="diagram-image"
+              />
+            </foreignObject>
             {selectedId === image.id && (
               <rect
                 x={image.x - 2}
