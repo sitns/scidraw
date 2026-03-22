@@ -4,50 +4,52 @@ export function exportToTikZ(diagram) {
   let tikz = `\\documentclass{article}
 \\usepackage[utf8]{inputenc}
 \\usepackage{tikz}
+\\usepackage{xcolor}
 \\usetikzlibrary{shapes,arrows,positioning}
 
 \\begin{document}
 
-\\begin{tikzpicture}[
-  node distance=1cm,
-  box/.style={rectangle, rounded corners, minimum width=#1, minimum height=#2, text centered, draw=#3, fill=#4},
-  arrow/.style={thick,->,>=stealth}
-]
+\\begin{tikzpicture}[node distance=2cm]
 
 `;
 
   nodes.forEach(node => {
     const width = node.width / 10;
     const height = node.height / 10;
-    const stroke = node.style.stroke.replace('#', '');
-    const fill = node.style.fill.replace('#', '');
-
-    let colorStroke = stroke;
-    let colorFill = fill;
-
-    if (stroke.length === 6) {
-      colorStroke = `{RGB}{${parseInt(stroke.substr(0,2),16)},${parseInt(stroke.substr(2,2),16)},${parseInt(stroke.substr(4,2),16)}}`;
+    const strokeColor = node.style.stroke || '#000000';
+    const fillColor = node.style.fill || '#ffffff';
+    const strokeWidth = node.style.strokeWidth || 1;
+    
+    let options = [
+      `minimum width=${width}cm`,
+      `minimum height=${height}cm`,
+      `draw=${strokeColor.replace('#', '')}`,
+      `fill=${fillColor.replace('#', '')}`,
+      'text centered'
+    ];
+    
+    if (node.type === 'rounded') {
+      options.push('rounded corners');
+    } else if (node.type === 'circle') {
+      options.push('circle');
     }
-    if (fill.length === 6) {
-      colorFill = `{RGB}{${parseInt(fill.substr(0,2),16)},${parseInt(fill.substr(2,2),16)},${parseInt(fill.substr(4,2),16)}}`;
-    }
-
-    let extraOptions = '';
-    const sw = node.style.strokeWidth || 1;
-    if (sw !== 1) {
-      extraOptions += `, line width=${sw}pt`;
-    }
+    
     if (node.style.strokeDasharray === 'dashed') {
-      extraOptions += ', dashed';
+      options.push('dashed');
     } else if (node.style.strokeDasharray === 'dotted') {
-      extraOptions += ', dotted';
+      options.push('dotted');
     }
-
-    tikz += `  \\node[box={${width}cm}{${height}cm}{${colorStroke}}{${colorFill}}${extraOptions}] (${node.id}) at (${node.x/10}, ${(canvas.height - node.y - node.height)/10}) {${node.label}};\n`;
+    
+    if (strokeWidth !== 1) {
+      options.push(`line width=${strokeWidth}pt`);
+    }
+    
+    const yPos = (canvas.height - node.y - node.height) / 10;
+    
+    tikz += `  \\node[${options.join(', ')}] (${node.id}) at (${(node.x / 10).toFixed(2)}, ${yPos.toFixed(2)}) {${node.label}};\n`;
     
     if (node.subtitle) {
-      tikz += `    node[below=0.2cm of ${node.id}, font=\\fontsize{8pt}{10pt}\\selectfont] {${node.subtitle}};
-`;
+      tikz += `  \\node[below=0.3cm of ${node.id}, font=\\small] {${node.subtitle}};\n`;
     }
   });
 
@@ -59,8 +61,13 @@ export function exportToTikZ(diagram) {
 
     if (!fromNode || !toNode) return;
 
-    let drawOptions = ['->'];
-
+    let drawOptions = [];
+    
+    const edgeColor = edge.strokeColor || '#333333';
+    if (edgeColor !== '#333333') {
+      drawOptions.push(edgeColor.replace('#', ''));
+    }
+    
     if (edge.style === 'dashed') {
       drawOptions.push('dashed');
     } else if (edge.style === 'dotted') {
@@ -72,25 +79,30 @@ export function exportToTikZ(diagram) {
       drawOptions.push(`line width=${edgeStrokeWidth}pt`);
     }
 
-    if (edge.strokeColor && edge.strokeColor !== '#333333') {
-      const ec = edge.strokeColor.replace('#', '');
-      if (ec.length === 6) {
-        const colorDef = `{RGB}{${parseInt(ec.substr(0,2),16)},${parseInt(ec.substr(2,2),16)},${parseInt(ec.substr(4,2),16)}}`;
-        drawOptions.push(`color=${colorDef}`);
-      }
+    const optionsStr = drawOptions.length > 0 ? `[${drawOptions.join(', ')}]` : '';
+    
+    if (edge.controlPoints && edge.controlPoints.length > 0) {
+      const points = edge.controlPoints.map(cp => 
+        `(${(cp.x / 10).toFixed(2)}, ${((canvas.height - cp.y) / 10).toFixed(2)})`
+      ).join(' .. ');
+      tikz += `  \\draw[->${optionsStr ? ', ' + drawOptions.join(', ') : ''}] (${edge.from}) .. controls ${points} .. (${edge.to});\n`;
+    } else {
+      tikz += `  \\draw[->${optionsStr ? ', ' + drawOptions.join(', ') : ''}] (${edge.from}) -- (${edge.to});\n`;
     }
-
-    tikz += `  \\draw[${drawOptions.join(',')}] (${edge.from}) -- (${edge.to});\n`;
     
     if (edge.label) {
-      const midX = (fromNode.x + fromNode.width/2 + toNode.x + toNode.width/2) / 2 / 10;
-      const midY = (fromNode.y + fromNode.height/2 + toNode.y + toNode.height/2) / 2 / 10;
-      tikz += `  \\node at (${midX}, ${midY + 0.3}) {${edge.label}};
-`;
+      const fromX = fromNode.x + fromNode.width / 2;
+      const fromY = fromNode.y + fromNode.height / 2;
+      const toX = toNode.x + toNode.width / 2;
+      const toY = toNode.y + toNode.height / 2;
+      const midX = (fromX + toX) / 2 / 10;
+      const midY = (canvas.height - (fromY + toY) / 2) / 10;
+      tikz += `  \\node at (${midX.toFixed(2)}, ${(midY + 0.3).toFixed(2)}) {${edge.label}};\n`;
     }
   });
 
-  tikz += `\\end{tikzpicture}
+  tikz += `
+\\end{tikzpicture}
 
 \\end{document}`;
 
