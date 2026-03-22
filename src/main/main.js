@@ -9,7 +9,7 @@ const menuLabels = {
   open: '打开...',
   save: '保存',
   saveAs: '另存为...',
-  exportTikZ: '导出 TikZ...',
+  importTikZ: '导入 TikZ...',
   exportPDF: '导出 PDF...',
   exit: '退出',
   edit: '编辑',
@@ -41,7 +41,7 @@ function createMenu() {
         { label: menuLabels.save, accelerator: 'CmdOrCtrl+S', click: () => mainWindow?.webContents.send('menu-save') },
         { label: menuLabels.saveAs, accelerator: 'CmdOrCtrl+Shift+S', click: () => mainWindow?.webContents.send('menu-save-as') },
         { type: 'separator' },
-        { label: menuLabels.exportTikZ, accelerator: 'CmdOrCtrl+E', click: () => mainWindow?.webContents.send('menu-export-tikz') },
+        { label: menuLabels.importTikZ, accelerator: 'CmdOrCtrl+I', click: () => mainWindow?.webContents.send('menu-import-tikz') },
         { label: menuLabels.exportPDF, accelerator: 'CmdOrCtrl+P', click: () => mainWindow?.webContents.send('menu-export-pdf') },
         { type: 'separator' },
         { label: menuLabels.exit, role: 'quit' }
@@ -193,20 +193,6 @@ ipcMain.handle('open-file', async () => {
     const content = fs.readFileSync(result.filePaths[0], 'utf-8');
     log.info('File opened:', result.filePaths[0]);
     return { success: true, content, filePath: result.filePaths[0] };
-  }
-  return { success: false };
-});
-
-ipcMain.handle('export-tikz', async (event, { content }) => {
-  const result = await dialog.showSaveDialog(mainWindow, {
-    defaultPath: 'diagram.tex',
-    filters: [{ name: 'LaTeX', extensions: ['tex'] }]
-  });
-
-  if (!result.canceled && result.filePath) {
-    fs.writeFileSync(result.filePath, content, 'utf-8');
-    log.info('TikZ exported:', result.filePath);
-    return { success: true, filePath: result.filePath };
   }
   return { success: false };
 });

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import yaml from 'js-yaml';
 import { parseDiagram, serializeDiagram } from './utils/dslParser';
-import { exportToTikZ } from './utils/tikzExporter';
+import { parseTikZ } from './utils/tikzParser';
 import { t, getLocale, setLocale } from './utils/i18n';
 import WelcomeScreen from './components/WelcomeScreen';
 import GuideOverlay from './components/GuideOverlay';
@@ -474,14 +474,18 @@ edges: []
     isEditorUpdating.current = false;
   };
 
-  const handleExportTikZ = async () => {
-    if (!diagram) return;
-    const tikzCode = exportToTikZ(diagram);
+  const handleImportTikZ = async () => {
+    const tikzCode = prompt(locale === 'zh' ? '请粘贴TikZ代码:' : 'Paste TikZ code:');
+    if (!tikzCode) return;
     
-    if (window.electronAPI) {
-      await window.electronAPI.exportTikZ({ content: tikzCode });
-    } else {
-      console.log('TikZ Export:', tikzCode);
+    try {
+      const parsed = parseTikZ(tikzCode);
+      handleVisualChange(parsed);
+      if (editorRef.current) {
+        editorRef.current.setValue(serializeDiagram(parsed));
+      }
+    } catch (e) {
+      setError(`TikZ parse error: ${e.message}`);
     }
   };
 
@@ -582,8 +586,8 @@ edges: []
           <button className="toolbar-btn" onClick={handleNewFile}>{t('toolbar.newFile', locale)}</button>
           <button className="toolbar-btn secondary" onClick={handleOpen}>{t('toolbar.open', locale)}</button>
           <button className="toolbar-btn secondary" onClick={handleSave}>{t('toolbar.save', locale)}</button>
+          <button className="toolbar-btn secondary" onClick={handleImportTikZ}>{t('toolbar.importTikZ', locale)}</button>
           <button className="toolbar-btn" onClick={handleExportPDF}>{t('toolbar.exportPDF', locale)}</button>
-          <button className="toolbar-btn" onClick={handleExportTikZ}>{t('toolbar.exportTikZ', locale)}</button>
         </div>
       </div>
 

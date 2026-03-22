@@ -4,7 +4,7 @@ export const translations = {
     toolbar: {
       open: 'Open',
       save: 'Save',
-      exportTikZ: 'Export TikZ',
+      importTikZ: 'Import TikZ',
       exportPDF: 'Export PDF',
       newFile: 'New'
     },
@@ -73,7 +73,7 @@ export const translations = {
     toolbar: {
       open: '打开',
       save: '保存',
-      exportTikZ: '导出 TikZ',
+      importTikZ: '导入 TikZ',
       exportPDF: '导出 PDF',
       newFile: '新建'
     },
