@@ -229,15 +229,19 @@ function App() {
     setSyncDirection('visual-to-code');
     setDiagram(newDiagram);
     
-    const newCode = serializeDiagram(newDiagram);
-    if (editorRef.current) {
-      const currentPosition = editorRef.current.getPosition();
-      editorRef.current.setValue(newCode);
-      if (currentPosition) {
-        editorRef.current.setPosition(currentPosition);
+    try {
+      const newCode = serializeDiagram(newDiagram);
+      if (editorRef.current) {
+        const currentPosition = editorRef.current.getPosition();
+        editorRef.current.setValue(newCode);
+        if (currentPosition) {
+          editorRef.current.setPosition(currentPosition);
+        }
       }
+      setCode(newCode);
+    } catch (err) {
+      console.error('Serialization error:', err);
     }
-    setCode(newCode);
     
     setTimeout(() => setSyncDirection('code-to-visual'), 100);
   }, []);
