@@ -7,6 +7,7 @@ import WelcomeScreen from './components/WelcomeScreen';
 import GuideOverlay from './components/GuideOverlay';
 import NodeToolbar from './components/NodeToolbar';
 import NodePropertiesPanel from './components/NodePropertiesPanel';
+import TikZImportDialog from './components/TikZImportDialog';
 
 const DEFAULT_DSL = `# SciDraw 图表定义
 # 使用 YAML 格式描述科研图表
@@ -76,6 +77,7 @@ function App() {
     return localStorage.getItem('scidraw-welcomed') !== 'true';
   });
   const [showGuide, setShowGuide] = useState(false);
+  const [showTikzDialog, setShowTikzDialog] = useState(false);
   const [monacoLoaded, setMonacoLoaded] = useState(false);
   const [monacoError, setMonacoError] = useState(false);
   const [editorWidth, setEditorWidth] = useState(40); // 百分比
@@ -475,9 +477,10 @@ edges: []
   };
 
   const handleImportTikZ = async () => {
-    const tikzCode = prompt(locale === 'zh' ? '请粘贴TikZ代码:' : 'Paste TikZ code:');
-    if (!tikzCode) return;
-    
+    setShowTikzDialog(true);
+  };
+
+  const handleTikzImport = (tikzCode) => {
     try {
       const parsed = parseTikZ(tikzCode);
       handleVisualChange(parsed);
@@ -689,6 +692,13 @@ edges: []
           onClose={handleGuideClose}
         />
       )}
+
+      <TikZImportDialog
+        isOpen={showTikzDialog}
+        onClose={() => setShowTikzDialog(false)}
+        onImport={handleTikzImport}
+        locale={locale}
+      />
     </div>
   );
 }
