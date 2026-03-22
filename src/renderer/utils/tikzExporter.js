@@ -1,12 +1,35 @@
 export function exportToTikZ(diagram) {
   const { canvas, nodes = [], edges = [] } = diagram;
   
+  // 收集所有使用的颜色
+  const colors = new Set();
+  nodes.forEach(node => {
+    if (node.style.stroke) colors.add(node.style.stroke.replace('#', ''));
+    if (node.style.fill) colors.add(node.style.fill.replace('#', ''));
+  });
+  edges.forEach(edge => {
+    if (edge.strokeColor) colors.add(edge.strokeColor.replace('#', ''));
+  });
+  
+  // 生成颜色定义
+  let colorDefs = '';
+  colors.forEach(color => {
+    if (color && color.length === 6) {
+      const r = parseInt(color.substr(0, 2), 16) / 255;
+      const g = parseInt(color.substr(2, 2), 16) / 255;
+      const b = parseInt(color.substr(4, 2), 16) / 255;
+      colorDefs += `\\definecolor{c${color}}{rgb}{${r.toFixed(3)},${g.toFixed(3)},${b.toFixed(3)}}\n`;
+    }
+  });
+  
   let tikz = `\\documentclass{article}
 \\usepackage[utf8]{inputenc}
+\\usepackage{ctex}
 \\usepackage{tikz}
 \\usepackage{xcolor}
 \\usetikzlibrary{shapes,arrows,positioning}
 
+${colorDefs}
 \\begin{document}
 
 \\begin{tikzpicture}[node distance=2cm]
@@ -14,17 +37,17 @@ export function exportToTikZ(diagram) {
 `;
 
   nodes.forEach(node => {
-    const width = node.width / 10;
-    const height = node.height / 10;
-    const strokeColor = node.style.stroke || '#000000';
-    const fillColor = node.style.fill || '#ffffff';
+    const width = (node.width / 10).toFixed(1);
+    const height = (node.height / 10).toFixed(1);
+    const strokeColor = node.style.stroke?.replace('#', '') || '000000';
+    const fillColor = node.style.fill?.replace('#', '') || 'ffffff';
     const strokeWidth = node.style.strokeWidth || 1;
     
     let options = [
       `minimum width=${width}cm`,
       `minimum height=${height}cm`,
-      `draw=${strokeColor.replace('#', '')}`,
-      `fill=${fillColor.replace('#', '')}`,
+      `draw=c${strokeColor}`,
+      `fill=c${fillColor}`,
       'text centered'
     ];
     
@@ -44,9 +67,10 @@ export function exportToTikZ(diagram) {
       options.push(`line width=${strokeWidth}pt`);
     }
     
-    const yPos = (canvas.height - node.y - node.height) / 10;
+    const yPos = ((canvas.height - node.y - node.height) / 10).toFixed(1);
+    const xPos = (node.x / 10).toFixed(1);
     
-    tikz += `  \\node[${options.join(', ')}] (${node.id}) at (${(node.x / 10).toFixed(2)}, ${yPos.toFixed(2)}) {${node.label}};\n`;
+    tikz += `  \\node[${options.join(', ')}] (${node.id}) at (${xPos}, ${yPos}) {${node.label}};\n`;
     
     if (node.subtitle) {
       tikz += `  \\node[below=0.3cm of ${node.id}, font=\\small] {${node.subtitle}};\n`;
@@ -61,11 +85,11 @@ export function exportToTikZ(diagram) {
 
     if (!fromNode || !toNode) return;
 
-    let drawOptions = [];
+    let drawOptions = ['->'];
     
-    const edgeColor = edge.strokeColor || '#333333';
-    if (edgeColor !== '#333333') {
-      drawOptions.push(edgeColor.replace('#', ''));
+    const edgeColor = edge.strokeColor?.replace('#', '') || '333333';
+    if (edgeColor !== '333333') {
+      drawOptions.push(`c${edgeColor}`);
     }
     
     if (edge.style === 'dashed') {
@@ -79,25 +103,16 @@ export function exportToTikZ(diagram) {
       drawOptions.push(`line width=${edgeStrokeWidth}pt`);
     }
 
-    const optionsStr = drawOptions.length > 0 ? `[${drawOptions.join(', ')}]` : '';
-    
-    if (edge.controlPoints && edge.controlPoints.length > 0) {
-      const points = edge.controlPoints.map(cp => 
-        `(${(cp.x / 10).toFixed(2)}, ${((canvas.height - cp.y) / 10).toFixed(2)})`
-      ).join(' .. ');
-      tikz += `  \\draw[->${optionsStr ? ', ' + drawOptions.join(', ') : ''}] (${edge.from}) .. controls ${points} .. (${edge.to});\n`;
-    } else {
-      tikz += `  \\draw[->${optionsStr ? ', ' + drawOptions.join(', ') : ''}] (${edge.from}) -- (${edge.to});\n`;
-    }
+    tikz += `  \\draw[${drawOptions.join(', ')}] (${edge.from}) -- (${edge.to});\n`;
     
     if (edge.label) {
       const fromX = fromNode.x + fromNode.width / 2;
       const fromY = fromNode.y + fromNode.height / 2;
       const toX = toNode.x + toNode.width / 2;
       const toY = toNode.y + toNode.height / 2;
-      const midX = (fromX + toX) / 2 / 10;
-      const midY = (canvas.height - (fromY + toY) / 2) / 10;
-      tikz += `  \\node at (${midX.toFixed(2)}, ${(midY + 0.3).toFixed(2)}) {${edge.label}};\n`;
+      const midX = ((fromX + toX) / 2 / 10).toFixed(1);
+      const midY = ((canvas.height - (fromY + toY) / 2) / 10 + 0.3).toFixed(1);
+      tikz += `  \\node at (${midX}, ${midY}) {${edge.label}};\n`;
     }
   });
 
