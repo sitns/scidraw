@@ -73,6 +73,7 @@ function App() {
   const [diagram, setDiagram] = useState(null);
   const [error, setError] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [syncDirection, setSyncDirection] = useState('code-to-visual');
   const [locale, setLocaleState] = useState(getLocale);
   const [showWelcome, setShowWelcome] = useState(() => {
@@ -511,25 +512,36 @@ function App() {
   }, [diagram]);
 
   const handleDeleteSelected = useCallback(() => {
-    if (!diagram || !selectedId) return;
+    if (!diagram) return;
     
-    let newDiagram = { ...diagram };
+    const idsToDelete = selectedIds.length > 0 ? selectedIds : (selectedId ? [selectedId] : []);
+    if (idsToDelete.length === 0) return;
     
-    if (diagram.nodes.find(n => n.id === selectedId)) {
-      newDiagram.nodes = diagram.nodes.filter(n => n.id !== selectedId);
-      newDiagram.edges = diagram.edges.filter(e => e.from !== selectedId && e.to !== selectedId);
-    } else if (diagram.edges.find(e => e.id === selectedId)) {
-      newDiagram.edges = diagram.edges.filter(e => e.id !== selectedId);
-    } else if (diagram.texts.find(t => t.id === selectedId)) {
-      newDiagram.texts = diagram.texts.filter(t => t.id !== selectedId);
-    } else if (diagram.images.find(i => i.id === selectedId)) {
-      newDiagram.images = (diagram.images || []).filter(img => img.id !== selectedId);
-      delete imageStoreRef.current[selectedId];
-    }
+    let newDiagram = {
+      nodes: [...diagram.nodes],
+      edges: [...diagram.edges],
+      texts: [...(diagram.texts || [])],
+      images: [...(diagram.images || [])]
+    };
+    
+    idsToDelete.forEach(id => {
+      if (newDiagram.nodes.find(n => n.id === id)) {
+        newDiagram.nodes = newDiagram.nodes.filter(n => n.id !== id);
+        newDiagram.edges = newDiagram.edges.filter(e => e.from !== id && e.to !== id);
+      } else if (newDiagram.edges.find(e => e.id === id)) {
+        newDiagram.edges = newDiagram.edges.filter(e => e.id !== id);
+      } else if (newDiagram.texts.find(t => t.id === id)) {
+        newDiagram.texts = newDiagram.texts.filter(t => t.id !== id);
+      } else if (newDiagram.images.find(i => i.id === id)) {
+        newDiagram.images = newDiagram.images.filter(img => img.id !== id);
+        delete imageStoreRef.current[id];
+      }
+    });
     
     setDiagram(newDiagram);
     setSelectedId(null);
-  }, [diagram, selectedId]);
+    setSelectedIds([]);
+  }, [diagram, selectedId, selectedIds]);
 
   const handleLayerAction = useCallback((action) => {
     if (!diagram || !selectedId) return;
@@ -854,7 +866,9 @@ edges: []
             onImageMove={handleUpdateImage}
             onLabelMove={handleLabelMove}
             selectedId={selectedId}
+            selectedIds={selectedIds}
             onSelect={setSelectedId}
+            onSelectMultiple={setSelectedIds}
           />
         </div>
 
@@ -1044,7 +1058,7 @@ function NodeShape({ node, selected, onMouseDown, onLabelMouseDown }) {
   );
 }
 
-function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onImageMove, onLabelMove, selectedId, onSelect }) {
+function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onImageMove, onLabelMove, selectedId, selectedIds, onSelect, onSelectMultiple }) {
   const svgRef = useRef(null);
   const [dragging, setDragging] = useState(null);
   const [draggingType, setDraggingType] = useState('node');
@@ -1057,6 +1071,8 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onImageMo
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const [selectionBox, setSelectionBox] = useState(null);
+  const [isSelecting, setIsSelecting] = useState(false);
   const [, setForceUpdate] = useState(0);
 
   const canvas = diagram?.canvas || { width: 800, height: 600 };
@@ -1103,6 +1119,125 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onImageMo
       setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
     }
   }, [pan]);
+
+  const handleCanvasClick = useCallback((e) => {
+    // Start selection box when clicking on empty area (not panning)
+    if (e.button === 0 && !e.altKey && !isPanning) {
+      const target = e.target;
+      const svg = svgRef.current;
+      
+      // Only start selection if clicking on the SVG background or defs
+      if (target === svg || target.tagName === 'svg' || target.tagName === 'defs') {
+        const pt = svg.createSVGPoint();
+        pt.x = e.clientX;
+        pt.y = e.clientY;
+        const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+        
+        setIsSelecting(true);
+        setSelectionBox({ x1: svgP.x, y1: svgP.y, x2: svgP.x, y2: svgP.y });
+        
+        // Clear selection if not holding Shift
+        if (!e.shiftKey) {
+          onSelect(null);
+          if (onSelectMultiple) onSelectMultiple([]);
+        }
+      }
+    }
+  }, [isPanning, onSelect, onSelectMultiple]);
+
+  const handleSelectionMove = useCallback((e) => {
+    if (isSelecting && selectionBox) {
+      const svg = svgRef.current;
+      if (!svg) return;
+      
+      const pt = svg.createSVGPoint();
+      pt.x = e.clientX;
+      pt.y = e.clientY;
+      const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+      
+      setSelectionBox(prev => ({ ...prev, x2: svgP.x, y2: svgP.y }));
+    }
+  }, [isSelecting, selectionBox]);
+
+  const handleSelectionEnd = useCallback(() => {
+    if (isSelecting && selectionBox && diagram) {
+      const box = {
+        x: Math.min(selectionBox.x1, selectionBox.x2),
+        y: Math.min(selectionBox.y1, selectionBox.y2),
+        width: Math.abs(selectionBox.x2 - selectionBox.x1),
+        height: Math.abs(selectionBox.y2 - selectionBox.y1)
+      };
+      
+      // Find all nodes within selection box
+      const selected = [];
+      (diagram.nodes || []).forEach(node => {
+        const nodeBox = {
+          x: node.x,
+          y: node.y,
+          width: node.width,
+          height: node.height
+        };
+        
+        if (isBoxIntersecting(box, nodeBox)) {
+          selected.push(node.id);
+        }
+      });
+      
+      (diagram.texts || []).forEach(text => {
+        const textWidth = (text.content || '').length * (text.fontSize || 14) * 0.6;
+        const textHeight = text.fontSize || 14;
+        const textBox = {
+          x: text.x,
+          y: text.y - textHeight,
+          width: textWidth,
+          height: textHeight
+        };
+        
+        if (isBoxIntersecting(box, textBox)) {
+          selected.push(text.id);
+        }
+      });
+      
+      (diagram.images || []).forEach(image => {
+        const imageBox = {
+          x: image.x,
+          y: image.y,
+          width: image.width,
+          height: image.height
+        };
+        
+        if (isBoxIntersecting(box, imageBox)) {
+          selected.push(image.id);
+        }
+      });
+      
+      if (selected.length > 0 && onSelectMultiple) {
+        onSelectMultiple(selected);
+        onSelect(selected[0]); // Set primary selection
+      }
+    }
+    
+    setIsSelecting(false);
+    setSelectionBox(null);
+  }, [isSelecting, selectionBox, diagram, onSelect, onSelectMultiple]);
+
+  const isBoxIntersecting = (box1, box2) => {
+    return !(box1.x + box1.width < box2.x || 
+             box2.x + box2.width < box1.x || 
+             box1.y + box1.height < box2.y || 
+             box2.y + box2.height < box1.y);
+  };
+
+  useEffect(() => {
+    if (isSelecting) {
+      window.addEventListener('mousemove', handleSelectionMove);
+      window.addEventListener('mouseup', handleSelectionEnd);
+      return () => {
+        window.removeEventListener('mousemove', handleSelectionMove);
+        window.removeEventListener('mouseup', handleSelectionEnd);
+      };
+    }
+  }, [isSelecting, handleSelectionMove, handleSelectionEnd]);
 
   const handlePanMove = useCallback((e) => {
     if (isPanning) {
@@ -1476,17 +1611,13 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onImageMo
           background: canvas?.background || '#fff', 
           width: '100%', 
           height: '100%',
-          cursor: isPanning ? 'grabbing' : 'default'
+          cursor: isSelecting ? 'crosshair' : (isPanning ? 'grabbing' : 'default')
         }}
         onMouseDown={handlePanStart}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
-        onClick={(e) => {
-          if (e.target === e.currentTarget || e.target.tagName === 'svg') {
-            onSelect(null);
-          }
-        }}
+        onClick={handleCanvasClick}
       >
         <defs>
           <marker
@@ -1597,21 +1728,23 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onImageMo
                 </g>
               );
             } else if (item.type === 'node') {
+              const isMultiSelected = selectedIds.includes(item.data.id);
               return (
                 <NodeShape 
                   key={`node-${item.data.id}`}
                   node={item.data}
-                  selected={selectedId === item.data.id}
+                  selected={selectedId === item.data.id || isMultiSelected}
                   onMouseDown={(e) => handleMouseDown(e, item.data.id)}
                   onLabelMouseDown={(e) => handleLabelMouseDown(e, item.data.id, 'node')}
                 />
               );
             } else if (item.type === 'text') {
               const text = item.data;
+              const isMultiSelected = selectedIds.includes(text.id);
               return (
                 <g 
                   key={`text-${text.id}`}
-                  className={`text-element ${selectedId === text.id ? 'selected' : ''}`}
+                  className={`text-element ${selectedId === text.id || isMultiSelected ? 'selected' : ''}`}
                   onMouseDown={(e) => handleTextMouseDown(e, text.id)}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -1656,10 +1789,11 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onImageMo
               );
             } else if (item.type === 'image') {
               const image = item.data;
+              const isMultiSelected = selectedIds.includes(image.id);
               return (
                 <g
                   key={`image-${image.id}`}
-                  className={`image-element ${selectedId === image.id ? 'selected' : ''}`}
+                  className={`image-element ${selectedId === image.id || isMultiSelected ? 'selected' : ''}`}
                   onMouseDown={(e) => handleImageMouseDown(e, image.id)}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -1703,6 +1837,21 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onImageMo
             return null;
           });
         })()}
+        
+        {/* Selection box */}
+        {selectionBox && (
+          <rect
+            x={Math.min(selectionBox.x1, selectionBox.x2)}
+            y={Math.min(selectionBox.y1, selectionBox.y2)}
+            width={Math.abs(selectionBox.x2 - selectionBox.x1)}
+            height={Math.abs(selectionBox.y2 - selectionBox.y1)}
+            fill="rgba(0, 122, 204, 0.1)"
+            stroke="#007acc"
+            strokeWidth="1"
+            strokeDasharray="4,2"
+            pointerEvents="none"
+          />
+        )}
       </svg>
       
       <div className="zoom-controls">
