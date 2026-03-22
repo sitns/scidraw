@@ -1405,6 +1405,8 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onImageMo
       <svg 
         ref={svgRef}
         viewBox={`${viewBoxX} ${viewBoxY} ${scaledWidth} ${scaledHeight}`}
+        xmlns="http://www.w3.org/2000/svg"
+        xmlnsXlink="http://www.w3.org/1999/xlink"
         style={{ 
           background: canvas?.background || '#fff', 
           width: '100%', 
@@ -1594,6 +1596,7 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onImageMo
               width={image.width}
               height={image.height}
               href={image.src}
+              xlinkHref={image.src}
               opacity={image.opacity || 1}
               preserveAspectRatio="xMidYMid meet"
             />
