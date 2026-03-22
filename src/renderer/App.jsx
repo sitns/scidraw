@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import yaml from 'js-yaml';
-import { parseDiagram, serializeDiagram, bringToFront, sendToBack, bringForward, sendBackward } from './utils/dslParser';
+import { parseDiagram, serializeDiagram, bringToFront, sendToBack, bringForward, sendBackward, centerDiagram } from './utils/dslParser';
 import { parseTikZ } from './utils/tikzParser';
 import { parseFlowchart } from './utils/flowchartParser';
 import { t, getLocale, setLocale } from './utils/i18n';
@@ -670,9 +670,10 @@ edges: []
   const handleTikzImport = (tikzCode) => {
     try {
       const parsed = parseTikZ(tikzCode);
-      handleVisualChange(parsed);
+      const centered = centerDiagram(parsed, 800, 600);
+      handleVisualChange(centered);
       if (editorRef.current) {
-        editorRef.current.setValue(serializeDiagram(parsed));
+        editorRef.current.setValue(serializeDiagram(centered));
       }
     } catch (e) {
       setError(`TikZ parse error: ${e.message}`);
@@ -686,9 +687,10 @@ edges: []
   const handleFlowchartImport = (flowchartCode) => {
     try {
       const parsed = parseFlowchart(flowchartCode);
-      handleVisualChange(parsed);
+      const centered = centerDiagram(parsed, 800, 600);
+      handleVisualChange(centered);
       if (editorRef.current) {
-        editorRef.current.setValue(serializeDiagram(parsed));
+        editorRef.current.setValue(serializeDiagram(centered));
       }
     } catch (e) {
       setError(`Flowchart parse error: ${e.message}`);

@@ -236,3 +236,34 @@ export function sendBackward(diagram, elementId, elementType) {
   if (!element) return diagram;
   return updateElementZIndex(diagram, elementId, elementType, element.zIndex - 1);
 }
+
+export function centerDiagram(diagram, canvasWidth = 800, canvasHeight = 600) {
+  const nodes = diagram.nodes || [];
+  if (nodes.length === 0) return diagram;
+  
+  // 计算所有节点的边界框
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  nodes.forEach(node => {
+    minX = Math.min(minX, node.x);
+    minY = Math.min(minY, node.y);
+    maxX = Math.max(maxX, node.x + (node.width || 120));
+    maxY = Math.max(maxY, node.y + (node.height || 60));
+  });
+  
+  const diagramWidth = maxX - minX;
+  const diagramHeight = maxY - minY;
+  
+  // 计算居中偏移量
+  const offsetX = (canvasWidth - diagramWidth) / 2 - minX;
+  const offsetY = (canvasHeight - diagramHeight) / 2 - minY;
+  
+  // 移动所有节点
+  const newDiagram = { ...diagram };
+  newDiagram.nodes = nodes.map(node => ({
+    ...node,
+    x: node.x + offsetX,
+    y: node.y + offsetY
+  }));
+  
+  return newDiagram;
+}
