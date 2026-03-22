@@ -532,7 +532,6 @@ function App() {
     if (!diagram || !selectedId) return;
     
     let elementType = 'node';
-    let newDiagram = diagram;
     
     if (diagram.nodes.find(n => n.id === selectedId)) {
       elementType = 'node';
@@ -540,10 +539,11 @@ function App() {
       elementType = 'edge';
     } else if (diagram.texts.find(t => t.id === selectedId)) {
       elementType = 'text';
-    } else if (diagram.images.find(i => i.id === selectedId)) {
+    } else if (diagram.images && diagram.images.find(i => i.id === selectedId)) {
       elementType = 'image';
     }
     
+    let newDiagram;
     switch (action) {
       case 'bringToFront':
         newDiagram = bringToFront(diagram, selectedId, elementType);
@@ -561,8 +561,21 @@ function App() {
         return;
     }
     
-    handleVisualChange(newDiagram);
-  }, [diagram, selectedId, handleVisualChange]);
+    setDiagram(newDiagram);
+    
+    // 更新代码编辑器
+    setSyncDirection('visual-to-code');
+    try {
+      const newCode = serializeDiagram(newDiagram);
+      if (editorRef.current) {
+        editorRef.current.setValue(newCode);
+      }
+      setCode(newCode);
+    } catch (err) {
+      console.error('Layer action serialization error:', err);
+    }
+    setTimeout(() => setSyncDirection('code-to-visual'), 100);
+  }, [diagram, selectedId]);
 
   const handleLabelMove = useCallback((itemId, type, offsetX, offsetY) => {
     if (!diagram) return;
@@ -1459,192 +1472,208 @@ function VisualCanvas({ diagram, onNodeMove, onEdgeUpdate, onTextMove, onImageMo
           </marker>
         </defs>
 
-        {edges.map((edge, i) => {
-          const edgeData = getEdgePath(edge);
-          const fromNode = nodes.find(n => n.id === edge.from);
-          const toNode = nodes.find(n => n.id === edge.to);
-          const midX = fromNode && toNode ? (fromNode.x + fromNode.width/2 + toNode.x + toNode.width/2) / 2 : 0;
-          const midY = fromNode && toNode ? (fromNode.y + fromNode.height/2 + toNode.y + toNode.height/2) / 2 : 0;
-          const isSelected = selectedId === edge.id;
-          
-          const getStrokeDasharray = (style) => {
-            switch (style) {
-              case 'dashed':
-                return '8,4';
-              case 'dotted':
-                return '2,2';
-              default:
-                return 'none';
-            }
-          };
-          
-          return (
-            <g 
-              key={`edge-${i}`} 
-              className={`edge ${isSelected ? 'selected' : ''}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelect(edge.id);
-              }}
-            >
-              <path
-                d={edgeData.path}
-                stroke={edge.strokeColor || '#333'}
-                strokeWidth={isSelected ? (edge.strokeWidth || 1.5) * 1.5 : (edge.strokeWidth || 1.5)}
-                strokeDasharray={getStrokeDasharray(edge.style)}
-                fill="none"
-                markerEnd="url(#arrowhead)"
-              />
-              {isSelected && edge.controlPoints && edge.controlPoints.length > 0 && edge.controlPoints.map((cp, idx) => (
-                <g key={`cp-${idx}`}>
-                  <circle 
-                    cx={cp.x} 
-                    cy={cp.y} 
-                    r={10} 
-                    fill="rgba(0, 122, 204, 0.3)" 
-                    stroke="#007acc" 
-                    strokeWidth={2}
-                    style={{ cursor: 'move', pointerEvents: 'all' }}
-                    onMouseDown={(e) => handleControlPointMouseDown(e, edge.id, idx)}
-                  />
-                  <circle 
-                    cx={cp.x} 
-                    cy={cp.y} 
-                    r={4} 
-                    fill="#007acc"
-                    style={{ pointerEvents: 'none' }}
-                  />
-                  <text 
-                    x={cp.x} 
-                    y={cp.y - 12} 
-                    fontSize={11} 
-                    fill="#007acc"
-                    textAnchor="middle"
-                    fontWeight="bold"
-                  >
-                    {idx + 1}
-                  </text>
-                </g>
-              ))}
-              {edge.label && (
-                <text 
-                  x={midX + (edge.labelOffset?.x || 0)} 
-                  y={midY - 8 + (edge.labelOffset?.y || 0)}
-                  textAnchor="middle"
-                  fontSize={edge.labelStyle?.fontSize || 12}
-                  fontWeight={edge.labelStyle?.fontWeight || 'normal'}
-                  fontFamily={edge.labelStyle?.fontFamily || 'Arial'}
-                  fill={edge.labelColor || '#333'}
-                  cursor="move"
-                  onMouseDown={(e) => handleLabelMouseDown(e, edge.id, 'edge')}
+        {(() => {
+          // 收集所有元素并按zIndex排序
+          const allElements = [
+            ...edges.map(e => ({ type: 'edge', data: e, zIndex: e.zIndex || 0 })),
+            ...nodes.map(n => ({ type: 'node', data: n, zIndex: n.zIndex || 0 })),
+            ...texts.map(t => ({ type: 'text', data: t, zIndex: t.zIndex || 0 })),
+            ...(images || []).map(img => ({ type: 'image', data: img, zIndex: img.zIndex || 0 }))
+          ].sort((a, b) => a.zIndex - b.zIndex);
+
+          return allElements.map((item, index) => {
+            if (item.type === 'edge') {
+              const edge = item.data;
+              const edgeData = getEdgePath(edge);
+              const fromNode = nodes.find(n => n.id === edge.from);
+              const toNode = nodes.find(n => n.id === edge.to);
+              const midX = fromNode && toNode ? (fromNode.x + fromNode.width/2 + toNode.x + toNode.width/2) / 2 : 0;
+              const midY = fromNode && toNode ? (fromNode.y + fromNode.height/2 + toNode.y + toNode.height/2) / 2 : 0;
+              const isSelected = selectedId === edge.id;
+              
+              const getStrokeDasharray = (style) => {
+                switch (style) {
+                  case 'dashed':
+                    return '8,4';
+                  case 'dotted':
+                    return '2,2';
+                  default:
+                    return 'none';
+                }
+              };
+              
+              return (
+                <g 
+                  key={`edge-${edge.id}`} 
+                  className={`edge ${isSelected ? 'selected' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelect(edge.id);
+                  }}
                 >
-                  {edge.label}
-                </text>
-              )}
-            </g>
-          );
-        })}
-
-        {nodes.map((node) => (
-          <NodeShape 
-            key={node.id}
-            node={node}
-            selected={selectedId === node.id}
-            onMouseDown={(e) => handleMouseDown(e, node.id)}
-            onLabelMouseDown={(e) => handleLabelMouseDown(e, node.id, 'node')}
-          />
-        ))}
-
-        {texts.map((text) => (
-          <g 
-            key={text.id}
-            className={`text-element ${selectedId === text.id ? 'selected' : ''}`}
-            onMouseDown={(e) => handleTextMouseDown(e, text.id)}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect(text.id);
-            }}
-            style={{ cursor: 'move' }}
-          >
-            {text.backgroundColor && text.backgroundColor !== 'transparent' && (
-              <rect
-                x={text.x - 4}
-                y={text.y - (text.fontSize || 14) - 2}
-                width={text.content.length * (text.fontSize || 14) * 0.6 + 8}
-                height={(text.fontSize || 14) + 8}
-                fill={text.backgroundColor}
-                rx="3"
-                ry="3"
-              />
-            )}
-            <text
-              x={text.x}
-              y={text.y}
-              fontSize={text.fontSize || 14}
-              fontWeight={text.fontWeight || 'normal'}
-              fontFamily={text.fontFamily || 'Arial'}
-              fill={text.color || '#000000'}
-            >
-              {text.content}
-            </text>
-            {selectedId === text.id && (
-              <rect
-                x={text.x - 4}
-                y={text.y - (text.fontSize || 14) - 2}
-                width={text.content.length * (text.fontSize || 14) * 0.6 + 8}
-                height={(text.fontSize || 14) + 8}
-                fill="none"
-                stroke="#007acc"
-                strokeWidth="1"
-                strokeDasharray="4,2"
-              />
-            )}
-          </g>
-        ))}
-
-        {images.map((image) => (
-          <g
-            key={image.id}
-            className={`image-element ${selectedId === image.id ? 'selected' : ''}`}
-            onMouseDown={(e) => handleImageMouseDown(e, image.id)}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect(image.id);
-            }}
-            style={{ cursor: 'move' }}
-          >
-            <foreignObject
-              x={image.x}
-              y={image.y}
-              width={image.width}
-              height={image.height}
-              style={{ overflow: 'visible', opacity: image.opacity || 1 }}
-            >
-              <img
-                src={image.src}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  display: 'block'
-                }}
-                alt="diagram-image"
-              />
-            </foreignObject>
-            {selectedId === image.id && (
-              <rect
-                x={image.x - 2}
-                y={image.y - 2}
-                width={image.width + 4}
-                height={image.height + 4}
-                fill="none"
-                stroke="#007acc"
-                strokeWidth="2"
-                strokeDasharray="4,2"
-              />
-            )}
-          </g>
-        ))}
+                  <path
+                    d={edgeData.path}
+                    stroke={edge.strokeColor || '#333'}
+                    strokeWidth={isSelected ? (edge.strokeWidth || 1.5) * 1.5 : (edge.strokeWidth || 1.5)}
+                    strokeDasharray={getStrokeDasharray(edge.style)}
+                    fill="none"
+                    markerEnd="url(#arrowhead)"
+                  />
+                  {isSelected && edge.controlPoints && edge.controlPoints.length > 0 && edge.controlPoints.map((cp, idx) => (
+                    <g key={`cp-${idx}`}>
+                      <circle 
+                        cx={cp.x} 
+                        cy={cp.y} 
+                        r={10} 
+                        fill="rgba(0, 122, 204, 0.3)" 
+                        stroke="#007acc" 
+                        strokeWidth={2}
+                        style={{ cursor: 'move', pointerEvents: 'all' }}
+                        onMouseDown={(e) => handleControlPointMouseDown(e, edge.id, idx)}
+                      />
+                      <circle 
+                        cx={cp.x} 
+                        cy={cp.y} 
+                        r={4} 
+                        fill="#007acc"
+                        style={{ pointerEvents: 'none' }}
+                      />
+                      <text 
+                        x={cp.x} 
+                        y={cp.y - 12} 
+                        fontSize={11} 
+                        fill="#007acc"
+                        textAnchor="middle"
+                        fontWeight="bold"
+                      >
+                        {idx + 1}
+                      </text>
+                    </g>
+                  ))}
+                  {edge.label && (
+                    <text 
+                      x={midX + (edge.labelOffset?.x || 0)} 
+                      y={midY - 8 + (edge.labelOffset?.y || 0)}
+                      textAnchor="middle"
+                      fontSize={edge.labelStyle?.fontSize || 12}
+                      fontWeight={edge.labelStyle?.fontWeight || 'normal'}
+                      fontFamily={edge.labelStyle?.fontFamily || 'Arial'}
+                      fill={edge.labelColor || '#333'}
+                      cursor="move"
+                      onMouseDown={(e) => handleLabelMouseDown(e, edge.id, 'edge')}
+                    >
+                      {edge.label}
+                    </text>
+                  )}
+                </g>
+              );
+            } else if (item.type === 'node') {
+              return (
+                <NodeShape 
+                  key={`node-${item.data.id}`}
+                  node={item.data}
+                  selected={selectedId === item.data.id}
+                  onMouseDown={(e) => handleMouseDown(e, item.data.id)}
+                  onLabelMouseDown={(e) => handleLabelMouseDown(e, item.data.id, 'node')}
+                />
+              );
+            } else if (item.type === 'text') {
+              const text = item.data;
+              return (
+                <g 
+                  key={`text-${text.id}`}
+                  className={`text-element ${selectedId === text.id ? 'selected' : ''}`}
+                  onMouseDown={(e) => handleTextMouseDown(e, text.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelect(text.id);
+                  }}
+                  style={{ cursor: 'move' }}
+                >
+                  {text.backgroundColor && text.backgroundColor !== 'transparent' && (
+                    <rect
+                      x={text.x - 4}
+                      y={text.y - (text.fontSize || 14) - 2}
+                      width={text.content.length * (text.fontSize || 14) * 0.6 + 8}
+                      height={(text.fontSize || 14) + 8}
+                      fill={text.backgroundColor}
+                      rx="3"
+                      ry="3"
+                    />
+                  )}
+                  <text
+                    x={text.x}
+                    y={text.y}
+                    fontSize={text.fontSize || 14}
+                    fontWeight={text.fontWeight || 'normal'}
+                    fontFamily={text.fontFamily || 'Arial'}
+                    fill={text.color || '#000000'}
+                  >
+                    {text.content}
+                  </text>
+                  {selectedId === text.id && (
+                    <rect
+                      x={text.x - 4}
+                      y={text.y - (text.fontSize || 14) - 2}
+                      width={text.content.length * (text.fontSize || 14) * 0.6 + 8}
+                      height={(text.fontSize || 14) + 8}
+                      fill="none"
+                      stroke="#007acc"
+                      strokeWidth="1"
+                      strokeDasharray="4,2"
+                    />
+                  )}
+                </g>
+              );
+            } else if (item.type === 'image') {
+              const image = item.data;
+              return (
+                <g
+                  key={`image-${image.id}`}
+                  className={`image-element ${selectedId === image.id ? 'selected' : ''}`}
+                  onMouseDown={(e) => handleImageMouseDown(e, image.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelect(image.id);
+                  }}
+                  style={{ cursor: 'move' }}
+                >
+                  <foreignObject
+                    x={image.x}
+                    y={image.y}
+                    width={image.width}
+                    height={image.height}
+                    style={{ overflow: 'visible', opacity: image.opacity || 1 }}
+                  >
+                    <img
+                      src={image.src}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        display: 'block'
+                      }}
+                      alt="diagram-image"
+                    />
+                  </foreignObject>
+                  {selectedId === image.id && (
+                    <rect
+                      x={image.x - 2}
+                      y={image.y - 2}
+                      width={image.width + 4}
+                      height={image.height + 4}
+                      fill="none"
+                      stroke="#007acc"
+                      strokeWidth="2"
+                      strokeDasharray="4,2"
+                    />
+                  )}
+                </g>
+              );
+            }
+            return null;
+          });
+        })()}
       </svg>
       
       <div className="zoom-controls">
