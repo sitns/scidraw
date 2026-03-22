@@ -432,12 +432,28 @@ function App() {
       zIndex: 0
     };
 
-    handleVisualChange({
+    const newDiagram = {
       ...diagram,
       images: [...(diagram.images || []), newImage]
-    });
+    };
+    
+    // Update diagram state directly
+    setDiagram(newDiagram);
     setSelectedId(newImage.id);
-  }, [diagram, handleVisualChange]);
+    
+    // Update code editor with placeholder (without triggering diagram update)
+    setSyncDirection('visual-to-code');
+    try {
+      const newCode = serializeDiagram(newDiagram);
+      if (editorRef.current) {
+        editorRef.current.setValue(newCode);
+      }
+      setCode(newCode);
+    } catch (err) {
+      console.error('Serialization error:', err);
+    }
+    setTimeout(() => setSyncDirection('code-to-visual'), 100);
+  }, [diagram]);
 
   const handleUpdateImage = useCallback((updatedImage) => {
     if (!diagram) return;

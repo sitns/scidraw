@@ -154,8 +154,15 @@ export function serializeDiagram(diagram) {
     })) : undefined
   };
 
-  const cleaned = JSON.parse(JSON.stringify(obj));
-  return yaml.dump(cleaned, { indent: 2, lineWidth: -1 });
+  try {
+    const cleaned = JSON.parse(JSON.stringify(obj));
+    return yaml.dump(cleaned, { indent: 2, lineWidth: -1 });
+  } catch (e) {
+    // If serialization fails due to large data, try without images
+    delete obj.images;
+    const cleaned = JSON.parse(JSON.stringify(obj));
+    return yaml.dump(cleaned, { indent: 2, lineWidth: -1 });
+  }
 }
 
 export function getAllElements(diagram) {
