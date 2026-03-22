@@ -218,15 +218,36 @@ function App() {
     setCode(value);
     try {
       const parsed = parseDiagram(value);
+      // Preserve existing image data when parsing from code
+      if (diagram && diagram.images && diagram.images.length > 0) {
+        const existingImages = diagram.images;
+        parsed.images = parsed.images.map((img, idx) => {
+          const existing = existingImages.find(e => e.id === img.id);
+          if (existing && img.src === '[base64 image data]') {
+            return { ...img, src: existing.src };
+          }
+          return img;
+        });
+        // Keep images not in parsed (if any were added)
+        existingImages.forEach(existing => {
+          if (!parsed.images.find(img => img.id === existing.id)) {
+            parsed.images.push(existing);
+          }
+        });
+      }
       setDiagram(parsed);
       setError(null);
     } catch (e) {
       setError(e.message);
     }
-  }, []);
+  }, [diagram]);
 
   const handleVisualChange = useCallback((newDiagram) => {
     setSyncDirection('visual-to-code');
+    
+    // Preserve actual image data (base64) before serialization
+    const imagesWithFullData = newDiagram.images || [];
+    
     setDiagram(newDiagram);
     
     try {

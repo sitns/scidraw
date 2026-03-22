@@ -148,7 +148,7 @@ export function serializeDiagram(diagram) {
       y: Math.round(image.y),
       width: image.width,
       height: image.height,
-      src: image.src,
+      src: '[base64 image data]',  // Placeholder - actual data stored in diagram state
       opacity: image.opacity !== 1 ? image.opacity : undefined,
       zIndex: image.zIndex !== 0 ? image.zIndex : undefined
     })) : undefined
