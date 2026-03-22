@@ -88,6 +88,7 @@ function App() {
   const isEditorUpdating = useRef(false);
   const syncDirectionRef = useRef(syncDirection);
   const diagramRef = useRef(diagram);
+  const imageStoreRef = useRef({});  // 独立存储图片base64数据, key=imageId
 
   const handleLocaleChange = useCallback((newLocale) => {
     setLocale(newLocale);
@@ -216,10 +217,24 @@ function App() {
       isEditorUpdating.current = false;
       try {
         const parsed = parseDiagram(newCode);
-        const currentDiagram = diagramRef.current;
-        if (currentDiagram && currentDiagram.images && currentDiagram.images.length > 0) {
-          parsed.images = currentDiagram.images;
+        // 从imageStore恢复图片数据
+        if (parsed.images) {
+          parsed.images = parsed.images.map(img => ({
+            ...img,
+            src: imageStoreRef.current[img.id] || img.src
+          }));
         }
+        // 补充imageStore中有但parsed中没有的图片
+        const store = imageStoreRef.current;
+        Object.keys(store).forEach(id => {
+          if (!parsed.images.find(img => img.id === id)) {
+            const currentDiagram = diagramRef.current;
+            const existing = currentDiagram?.images?.find(img => img.id === id);
+            if (existing) {
+              parsed.images.push(existing);
+            }
+          }
+        });
         setDiagram(parsed);
         setError(null);
       } catch (e) {
@@ -232,29 +247,22 @@ function App() {
     setCode(value);
     try {
       const parsed = parseDiagram(value);
-      // Preserve existing image data when parsing from code
-      if (diagram && diagram.images && diagram.images.length > 0) {
-        // Always keep existing images since YAML only has placeholders
-        const existingImages = diagram.images;
-        if (!parsed.images || parsed.images.length === 0) {
-          parsed.images = existingImages;
-        } else {
-          // Merge: update position/size from code, keep src from state
-          parsed.images = parsed.images.map((img) => {
-            const existing = existingImages.find(e => e.id === img.id);
-            if (existing) {
-              return { ...img, src: existing.src };
-            }
-            return img;
-          });
-          // Add any images not in parsed
-          existingImages.forEach(existing => {
-            if (!parsed.images.find(img => img.id === existing.id)) {
-              parsed.images.push(existing);
-            }
-          });
-        }
+      // 从imageStore恢复图片数据
+      if (parsed.images) {
+        parsed.images = parsed.images.map(img => ({
+          ...img,
+          src: imageStoreRef.current[img.id] || img.src
+        }));
       }
+      // 补充imageStore中有但parsed中没有的图片
+      Object.keys(imageStoreRef.current).forEach(id => {
+        if (!parsed.images.find(img => img.id === id)) {
+          const existing = diagram?.images?.find(img => img.id === id);
+          if (existing) {
+            parsed.images.push(existing);
+          }
+        }
+      });
       setDiagram(parsed);
       setError(null);
     } catch (e) {
@@ -441,8 +449,13 @@ function App() {
   const handleAddImage = useCallback((imageData) => {
     if (!diagram) return;
 
+    const imageId = `image_${Date.now()}`;
+    
+    // 存储图片数据到独立store
+    imageStoreRef.current[imageId] = imageData.src;
+
     const newImage = {
-      id: `image_${Date.now()}`,
+      id: imageId,
       x: 100,
       y: 100,
       width: imageData.width || 200,
@@ -457,11 +470,10 @@ function App() {
       images: [...(diagram.images || []), newImage]
     };
     
-    // Update diagram state directly
     setDiagram(newDiagram);
-    setSelectedId(newImage.id);
+    setSelectedId(imageId);
     
-    // Update code editor with placeholder (without triggering diagram update)
+    // 更新代码编辑器
     setSyncDirection('visual-to-code');
     try {
       const newCode = serializeDiagram(newDiagram);
@@ -509,6 +521,7 @@ function App() {
       newDiagram.texts = diagram.texts.filter(t => t.id !== selectedId);
     } else if (diagram.images.find(i => i.id === selectedId)) {
       newDiagram.images = (diagram.images || []).filter(img => img.id !== selectedId);
+      delete imageStoreRef.current[selectedId];
     }
     
     setDiagram(newDiagram);
