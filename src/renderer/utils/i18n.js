@@ -5,7 +5,7 @@ export const translations = {
       open: 'Open',
       save: 'Save',
       importTikZ: 'Import TikZ',
-      importFlowchart: 'Import Flowchart',
+      importMermaid: 'Import Mermaid',
       exportPDF: 'Export PDF',
       newFile: 'New'
     },
@@ -75,7 +75,7 @@ export const translations = {
       open: '打开',
       save: '保存',
       importTikZ: '导入 TikZ',
-      importFlowchart: '导入流程图',
+      importMermaid: '导入 Mermaid',
       exportPDF: '导出 PDF',
       newFile: '新建'
     },
