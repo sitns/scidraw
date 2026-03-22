@@ -2,12 +2,14 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import yaml from 'js-yaml';
 import { parseDiagram, serializeDiagram, bringToFront, sendToBack, bringForward, sendBackward } from './utils/dslParser';
 import { parseTikZ } from './utils/tikzParser';
+import { parseFlowchart } from './utils/flowchartParser';
 import { t, getLocale, setLocale } from './utils/i18n';
 import WelcomeScreen from './components/WelcomeScreen';
 import GuideOverlay from './components/GuideOverlay';
 import NodeToolbar from './components/NodeToolbar';
 import NodePropertiesPanel from './components/NodePropertiesPanel';
 import TikZImportDialog from './components/TikZImportDialog';
+import FlowchartImportDialog from './components/FlowchartImportDialog';
 
 const DEFAULT_DSL = `# SciDraw 图表定义
 # 使用 YAML 格式描述科研图表
@@ -78,6 +80,7 @@ function App() {
   });
   const [showGuide, setShowGuide] = useState(false);
   const [showTikzDialog, setShowTikzDialog] = useState(false);
+  const [showFlowchartDialog, setShowFlowchartDialog] = useState(false);
   const [monacoLoaded, setMonacoLoaded] = useState(false);
   const [monacoError, setMonacoError] = useState(false);
   const [editorWidth, setEditorWidth] = useState(40); // 百分比
@@ -676,6 +679,22 @@ edges: []
     }
   };
 
+  const handleImportFlowchart = async () => {
+    setShowFlowchartDialog(true);
+  };
+
+  const handleFlowchartImport = (flowchartCode) => {
+    try {
+      const parsed = parseFlowchart(flowchartCode);
+      handleVisualChange(parsed);
+      if (editorRef.current) {
+        editorRef.current.setValue(serializeDiagram(parsed));
+      }
+    } catch (e) {
+      setError(`Flowchart parse error: ${e.message}`);
+    }
+  };
+
   const handleExportPDF = async () => {
     if (!diagram) return;
     
@@ -774,6 +793,7 @@ edges: []
           <button className="toolbar-btn secondary" onClick={handleOpen}>{t('toolbar.open', locale)}</button>
           <button className="toolbar-btn secondary" onClick={handleSave}>{t('toolbar.save', locale)}</button>
           <button className="toolbar-btn secondary" onClick={handleImportTikZ}>{t('toolbar.importTikZ', locale)}</button>
+          <button className="toolbar-btn secondary" onClick={handleImportFlowchart}>{t('toolbar.importFlowchart', locale)}</button>
           <button className="toolbar-btn" onClick={handleExportPDF}>{t('toolbar.exportPDF', locale)}</button>
         </div>
       </div>
@@ -885,6 +905,13 @@ edges: []
         isOpen={showTikzDialog}
         onClose={() => setShowTikzDialog(false)}
         onImport={handleTikzImport}
+        locale={locale}
+      />
+
+      <FlowchartImportDialog
+        isOpen={showFlowchartDialog}
+        onClose={() => setShowFlowchartDialog(false)}
+        onImport={handleFlowchartImport}
         locale={locale}
       />
     </div>
