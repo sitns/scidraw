@@ -1,29 +1,60 @@
 import yaml from 'js-yaml';
+import { getDiagramBounds, translateDiagram } from './diagramGeometry';
+
+function normalizeCanvas(canvas) {
+  return {
+    width: Number.isFinite(canvas?.width) ? canvas.width : null,
+    height: Number.isFinite(canvas?.height) ? canvas.height : null,
+    background: canvas?.background || '#ffffff',
+    infinite: canvas?.infinite !== false
+  };
+}
+
+function normalizeImageCrop(crop, width, height) {
+  const defaultCrop = { x: 0, y: 0, width: 1, height: 1 };
+  const normalized = {
+    x: Number.isFinite(crop?.x) ? crop.x : defaultCrop.x,
+    y: Number.isFinite(crop?.y) ? crop.y : defaultCrop.y,
+    width: Number.isFinite(crop?.width) ? crop.width : defaultCrop.width,
+    height: Number.isFinite(crop?.height) ? crop.height : defaultCrop.height
+  };
+
+  return {
+    x: Math.max(0, Math.min(1, normalized.x)),
+    y: Math.max(0, Math.min(1, normalized.y)),
+    width: Math.max(0.05, Math.min(1, normalized.width)),
+    height: Math.max(0.05, Math.min(1, normalized.height))
+  };
+}
+
+function normalizeImageFit(fit) {
+  if (fit === 'contain' || fit === 'fill') {
+    return fit;
+  }
+  return 'cover';
+}
 
 export function parseDiagram(code) {
   try {
     const parsed = yaml.load(code);
-    
+
     if (!parsed) {
       throw new Error('Empty diagram');
     }
 
     const diagram = {
-      canvas: {
-        width: parsed.canvas?.width || 800,
-        height: parsed.canvas?.height || 600,
-        background: parsed.canvas?.background || '#ffffff'
-      },
+      canvas: normalizeCanvas(parsed.canvas),
       nodes: (parsed.nodes || []).map((node, index) => ({
         id: node.id || `node_${index}`,
         type: node.type || 'box',
-        x: node.x || 0,
-        y: node.y || 0,
-        width: node.width || 120,
-        height: node.height || 60,
+        x: Number.isFinite(node.x) ? node.x : 0,
+        y: Number.isFinite(node.y) ? node.y : 0,
+        width: Number.isFinite(node.width) ? node.width : 120,
+        height: Number.isFinite(node.height) ? node.height : 60,
         label: node.label || '',
         subtitle: node.subtitle || '',
         labelOffset: node.labelOffset || { x: 0, y: 0 },
+        groupId: node.groupId || undefined,
         zIndex: node.zIndex || 0,
         style: {
           fill: node.style?.fill || '#ffffff',
@@ -58,25 +89,31 @@ export function parseDiagram(code) {
       })),
       texts: (parsed.texts || []).map((text, index) => ({
         id: text.id || `text_${index}`,
-        x: text.x || 100,
-        y: text.y || 100,
+        x: Number.isFinite(text.x) ? text.x : 100,
+        y: Number.isFinite(text.y) ? text.y : 100,
         content: text.content || 'Text',
         fontSize: text.fontSize || 14,
         fontWeight: text.fontWeight || 'normal',
         fontFamily: text.fontFamily || 'Arial',
         color: text.color || '#000000',
         backgroundColor: text.backgroundColor || 'transparent',
+        groupId: text.groupId || undefined,
         zIndex: text.zIndex || 0
       })),
       images: (parsed.images || []).map((image, index) => ({
         id: image.id || `image_${index}`,
-        x: image.x || 100,
-        y: image.y || 100,
-        width: image.width || 200,
-        height: image.height || 150,
+        x: Number.isFinite(image.x) ? image.x : 100,
+        y: Number.isFinite(image.y) ? image.y : 100,
+        width: Number.isFinite(image.width) ? image.width : 200,
+        height: Number.isFinite(image.height) ? image.height : 150,
         src: image.src || '',
         opacity: image.opacity || 1,
-        zIndex: image.zIndex || 0
+        groupId: image.groupId || undefined,
+        zIndex: image.zIndex || 0,
+        fit: normalizeImageFit(image.fit),
+        crop: normalizeImageCrop(image.crop, image.width, image.height),
+        naturalWidth: Number.isFinite(image.naturalWidth) ? image.naturalWidth : undefined,
+        naturalHeight: Number.isFinite(image.naturalHeight) ? image.naturalHeight : undefined
       }))
     };
 
@@ -88,8 +125,13 @@ export function parseDiagram(code) {
 
 export function serializeDiagram(diagram) {
   const obj = {
-    canvas: diagram.canvas,
-    nodes: diagram.nodes.map(node => ({
+    canvas: {
+      background: diagram.canvas?.background || '#ffffff',
+      infinite: diagram.canvas?.infinite !== false ? true : undefined,
+      width: diagram.canvas?.infinite === false ? diagram.canvas?.width : undefined,
+      height: diagram.canvas?.infinite === false ? diagram.canvas?.height : undefined
+    },
+    nodes: diagram.nodes.map((node) => ({
       id: node.id,
       type: node.type,
       x: Math.round(node.x),
@@ -99,6 +141,7 @@ export function serializeDiagram(diagram) {
       label: node.label,
       subtitle: node.subtitle || undefined,
       labelOffset: (node.labelOffset?.x !== 0 || node.labelOffset?.y !== 0) ? node.labelOffset : undefined,
+      groupId: node.groupId || undefined,
       zIndex: node.zIndex !== 0 ? node.zIndex : undefined,
       style: {
         fill: node.style.fill,
@@ -110,7 +153,8 @@ export function serializeDiagram(diagram) {
         fontFamily: node.style.fontFamily !== 'Arial' ? node.style.fontFamily : undefined
       }
     })),
-    edges: diagram.edges.map(edge => ({
+    edges: diagram.edges.map((edge) => ({
+      id: edge.id,
       from: edge.from,
       to: edge.to,
       label: edge.label || undefined,
@@ -130,7 +174,7 @@ export function serializeDiagram(diagram) {
       controlPoints: edge.controlPoints && edge.controlPoints.length > 0 ? edge.controlPoints : undefined,
       zIndex: edge.zIndex !== 0 ? edge.zIndex : undefined
     })),
-    texts: diagram.texts && diagram.texts.length > 0 ? diagram.texts.map(text => ({
+    texts: diagram.texts && diagram.texts.length > 0 ? diagram.texts.map((text) => ({
       id: text.id,
       x: Math.round(text.x),
       y: Math.round(text.y),
@@ -140,16 +184,22 @@ export function serializeDiagram(diagram) {
       fontFamily: text.fontFamily !== 'Arial' ? text.fontFamily : undefined,
       color: text.color !== '#000000' ? text.color : undefined,
       backgroundColor: text.backgroundColor !== 'transparent' ? text.backgroundColor : undefined,
+      groupId: text.groupId || undefined,
       zIndex: text.zIndex !== 0 ? text.zIndex : undefined
     })) : undefined,
-    images: diagram.images && diagram.images.length > 0 ? diagram.images.map(image => ({
+    images: diagram.images && diagram.images.length > 0 ? diagram.images.map((image) => ({
       id: image.id,
       x: Math.round(image.x),
       y: Math.round(image.y),
       width: image.width,
       height: image.height,
-      src: '[base64 image data]',  // Placeholder - actual data stored in diagram state
+      src: '[base64 image data]',
+      fit: image.fit !== 'cover' ? image.fit : undefined,
+      crop: image.crop && (image.crop.x !== 0 || image.crop.y !== 0 || image.crop.width !== 1 || image.crop.height !== 1) ? image.crop : undefined,
+      naturalWidth: image.naturalWidth || undefined,
+      naturalHeight: image.naturalHeight || undefined,
       opacity: image.opacity !== 1 ? image.opacity : undefined,
+      groupId: image.groupId || undefined,
       zIndex: image.zIndex !== 0 ? image.zIndex : undefined
     })) : undefined
   };
@@ -158,7 +208,6 @@ export function serializeDiagram(diagram) {
     const cleaned = JSON.parse(JSON.stringify(obj));
     return yaml.dump(cleaned, { indent: 2, lineWidth: -1 });
   } catch (e) {
-    // If serialization fails due to large data, try without images
     delete obj.images;
     const cleaned = JSON.parse(JSON.stringify(obj));
     return yaml.dump(cleaned, { indent: 2, lineWidth: -1 });
@@ -167,103 +216,92 @@ export function serializeDiagram(diagram) {
 
 export function getAllElements(diagram) {
   const elements = [];
-  
-  (diagram.nodes || []).forEach(node => {
+
+  (diagram.nodes || []).forEach((node) => {
     elements.push({ type: 'node', data: node, zIndex: node.zIndex || 0 });
   });
-  
-  (diagram.edges || []).forEach(edge => {
+
+  (diagram.edges || []).forEach((edge) => {
     elements.push({ type: 'edge', data: edge, zIndex: edge.zIndex || 0 });
   });
-  
-  (diagram.texts || []).forEach(text => {
+
+  (diagram.texts || []).forEach((text) => {
     elements.push({ type: 'text', data: text, zIndex: text.zIndex || 0 });
   });
-  
-  (diagram.images || []).forEach(image => {
+
+  (diagram.images || []).forEach((image) => {
     elements.push({ type: 'image', data: image, zIndex: image.zIndex || 0 });
   });
-  
+
   return elements.sort((a, b) => a.zIndex - b.zIndex);
 }
 
 export function updateElementZIndex(diagram, elementId, elementType, newZIndex) {
   const newDiagram = { ...diagram };
-  
+
   if (elementType === 'node') {
-    newDiagram.nodes = diagram.nodes.map(node => 
+    newDiagram.nodes = diagram.nodes.map((node) =>
       node.id === elementId ? { ...node, zIndex: newZIndex } : node
     );
   } else if (elementType === 'edge') {
-    newDiagram.edges = diagram.edges.map(edge => 
+    newDiagram.edges = diagram.edges.map((edge) =>
       edge.id === elementId ? { ...edge, zIndex: newZIndex } : edge
     );
   } else if (elementType === 'text') {
-    newDiagram.texts = diagram.texts.map(text => 
+    newDiagram.texts = diagram.texts.map((text) =>
       text.id === elementId ? { ...text, zIndex: newZIndex } : text
     );
   } else if (elementType === 'image') {
-    newDiagram.images = diagram.images.map(image => 
+    newDiagram.images = diagram.images.map((image) =>
       image.id === elementId ? { ...image, zIndex: newZIndex } : image
     );
   }
-  
+
   return newDiagram;
 }
 
 export function bringToFront(diagram, elementId, elementType) {
   const allElements = getAllElements(diagram);
-  const maxZIndex = Math.max(...allElements.map(e => e.zIndex), 0);
+  const maxZIndex = Math.max(...allElements.map((element) => element.zIndex), 0);
   return updateElementZIndex(diagram, elementId, elementType, maxZIndex + 1);
 }
 
 export function sendToBack(diagram, elementId, elementType) {
   const allElements = getAllElements(diagram);
-  const minZIndex = Math.min(...allElements.map(e => e.zIndex), 0);
+  const minZIndex = Math.min(...allElements.map((element) => element.zIndex), 0);
   return updateElementZIndex(diagram, elementId, elementType, minZIndex - 1);
 }
 
 export function bringForward(diagram, elementId, elementType) {
   const allElements = getAllElements(diagram);
-  const element = allElements.find(e => e.data.id === elementId && e.type === elementType);
+  const element = allElements.find((entry) => entry.data.id === elementId && entry.type === elementType);
   if (!element) return diagram;
   return updateElementZIndex(diagram, elementId, elementType, element.zIndex + 1);
 }
 
 export function sendBackward(diagram, elementId, elementType) {
   const allElements = getAllElements(diagram);
-  const element = allElements.find(e => e.data.id === elementId && e.type === elementType);
+  const element = allElements.find((entry) => entry.data.id === elementId && entry.type === elementType);
   if (!element) return diagram;
   return updateElementZIndex(diagram, elementId, elementType, element.zIndex - 1);
 }
 
-export function centerDiagram(diagram, canvasWidth = 800, canvasHeight = 600) {
-  const nodes = diagram.nodes || [];
-  if (nodes.length === 0) return diagram;
-  
-  // 计算所有节点的边界框
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  nodes.forEach(node => {
-    minX = Math.min(minX, node.x);
-    minY = Math.min(minY, node.y);
-    maxX = Math.max(maxX, node.x + (node.width || 120));
-    maxY = Math.max(maxY, node.y + (node.height || 60));
-  });
-  
-  const diagramWidth = maxX - minX;
-  const diagramHeight = maxY - minY;
-  
-  // 计算居中偏移量
-  const offsetX = (canvasWidth - diagramWidth) / 2 - minX;
-  const offsetY = (canvasHeight - diagramHeight) / 2 - minY;
-  
-  // 移动所有节点
-  const newDiagram = { ...diagram };
-  newDiagram.nodes = nodes.map(node => ({
-    ...node,
-    x: node.x + offsetX,
-    y: node.y + offsetY
-  }));
-  
-  return newDiagram;
+export function centerDiagram(diagram, viewportWidth = 1200, viewportHeight = 800, padding = 80) {
+  const bounds = getDiagramBounds(diagram, 0);
+  const targetCenterX = viewportWidth / 2;
+  const targetCenterY = viewportHeight / 2;
+  const currentCenterX = bounds.x + bounds.width / 2;
+  const currentCenterY = bounds.y + bounds.height / 2;
+
+  const centered = translateDiagram(diagram, targetCenterX - currentCenterX, targetCenterY - currentCenterY);
+  return {
+    ...centered,
+    canvas: {
+      ...centered.canvas,
+      infinite: true,
+      width: null,
+      height: null,
+      exportPadding: padding
+    }
+  };
 }

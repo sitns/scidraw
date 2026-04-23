@@ -10,6 +10,7 @@ const menuLabels = {
   save: '保存',
   saveAs: '另存为...',
   importTikZ: '导入 TikZ...',
+  importDrawio: '导入 draw.io...',
   exportPDF: '导出 PDF...',
   exit: '退出',
   edit: '编辑',
@@ -42,6 +43,7 @@ function createMenu() {
         { label: menuLabels.saveAs, accelerator: 'CmdOrCtrl+Shift+S', click: () => mainWindow?.webContents.send('menu-save-as') },
         { type: 'separator' },
         { label: menuLabels.importTikZ, accelerator: 'CmdOrCtrl+I', click: () => mainWindow?.webContents.send('menu-import-tikz') },
+        { label: menuLabels.importDrawio, click: () => mainWindow?.webContents.send('menu-import-drawio') },
         { label: menuLabels.exportPDF, accelerator: 'CmdOrCtrl+P', click: () => mainWindow?.webContents.send('menu-export-pdf') },
         { type: 'separator' },
         { label: menuLabels.exit, role: 'quit' }
@@ -184,7 +186,8 @@ ipcMain.handle('open-file', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
     filters: [
-      { name: 'Diagram Files', extensions: ['yaml', 'yml', 'json'] },
+      { name: 'Diagram Files', extensions: ['yaml', 'yml', 'json', 'drawio', 'xml'] },
+      { name: 'draw.io Files', extensions: ['drawio', 'xml'] },
       { name: 'All Files', extensions: ['*'] }
     ]
   });

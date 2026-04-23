@@ -6,6 +6,7 @@ export const translations = {
       save: 'Save',
       importTikZ: 'Import TikZ',
       importMermaid: 'Import Mermaid',
+      importDrawio: 'Import draw.io',
       exportPDF: 'Export PDF',
       newFile: 'New'
     },
@@ -76,6 +77,7 @@ export const translations = {
       save: '保存',
       importTikZ: '导入 TikZ',
       importMermaid: '导入 Mermaid',
+      importDrawio: '导入 draw.io',
       exportPDF: '导出 PDF',
       newFile: '新建'
     },

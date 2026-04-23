@@ -6,223 +6,151 @@
 
 **中文** | [English](#english)
 
-一款结合代码编辑与可视化拖拽的科研图表编辑器，支持导入 TikZ 代码、插入图片、图层管理等功能。
+结合 YAML DSL 与可视化画布的桌面科研图编辑器。当前版本重点覆盖 SciDraw DSL 双向编辑、TikZ / Mermaid / draw.io 导入、图片与文本排版、无限画布，以及适合流程图和科研示意图的快速绘制体验。
 
-A scientific diagram editor combining code editing with visual drag-and-drop, supporting TikZ import, image insertion, and layer management.
+A desktop scientific diagram editor that combines a YAML DSL with a visual canvas. The current build focuses on bidirectional SciDraw DSL editing, TikZ / Mermaid / draw.io import, image and text layout, an infinite canvas, and fast authoring for flowcharts and scientific diagrams.
 
 ---
 
 ## 中文
 
-### 功能特点
+### 当前能力
 
-- **🔄 双向同步编辑** - 代码编辑与可视化画布实时同步，修改任意一端都会自动更新另一端
-- **📦 多种节点类型** - 支持矩形、圆角矩形、圆形、菱形、流程图、数据框等6种形状
-- **🔀 智能连线系统** - 自动计算最佳连线方向，支持手动调整起点/终点位置
-- **🎯 曲线控制点** - 贝塞尔曲线、手动控制点，自由调整连线弯曲形状
-- **📥 导入 TikZ** - 支持导入 TikZ 代码并转换为可视化图表
-- **📑 PDF 导出** - 直接导出图表为 PDF 格式，方便分享和打印
-- **🖼️ 插入图片** - 支持从本地插入 JPG、PNG 等图片到画布
-- **📚 图层管理** - 置于顶层、上移一层、下移一层、置于底层
-- **🎨 字体编辑** - 支持多种字体（宋体、黑体、Arial等）、字号、粗细设置
-- **📝 文本框** - 可插入独立文本元素，支持自定义样式
-- **🖱️ 拖拽标签** - 可自由移动节点、连线的标签位置
-- **🔍 画布缩放** - Ctrl+滚轮缩放画布，Alt+拖动平移
-- **📏 可调面板** - 拖动面板边界调整大小
-- **🌐 中英文界面** - 完整的中英文支持，方便不同用户使用
-- **📖 新手引导** - 内置欢迎界面和使用教程，快速上手
+- **YAML DSL + 画布双向同步**: 修改代码或拖拽画布元素都会回写到另一侧。
+- **15 个内置形状**: `box`、`rounded`、`circle`、`ellipse`、`diamond`、`triangle`、`process`、`data`、`document`、`database`、`terminator`、`preparation`、`swimlane`、`note`、`package`。
+- **无限画布**: 画布会根据内容自动扩展，支持网格背景、缩放、平移和导出边界裁切。
+- **文本与图片元素**: 可插入独立文本框和本地图片，支持图片缩放、透明度、`cover` / `contain` / `fill` 填充模式与裁剪区域。
+- **框选与绑定/解绑**: 可框选多个节点 / 文本 / 图片，并将它们绑定为持久分组，之后拖动任一成员会整组联动。
+- **连线编辑**: 支持节点间连线、线型切换、曲线模式切换、标签拖拽和图层调整。
+- **多来源导入**: 支持 TikZ、Mermaid，以及最小可用版本的 draw.io / diagrams.net XML 导入。
+- **PDF 打印导出**: 导出时按实际图形边界裁切，减少大片空白。
+- **桌面应用体验**: Electron 菜单、顶部工具栏、中英文界面、欢迎页和引导页都可用。
+
+### 当前限制
+
+- **draw.io 导入是 MVP 解析器**: 当前支持未压缩的 `mxGraph` XML 和未压缩 `.drawio` 内容，做了基础顶点 / 连线提取与部分样式映射。压缩文件和高级样式细节暂不支持。
+- **Mermaid / TikZ 导入是轻量解析**: 当前覆盖常见语法路径，不是完整语言实现。
+- **框选与绑定暂不包含连线**: 多选和持久分组目前只作用于节点、文本、图片。
+- **图片尚未完整持久化到 YAML**: 保存的 YAML 会写入占位 `src`，不会内嵌原始图片二进制数据。当前会话内可从内存恢复，重新打开独立文件时需要重新插图。
 
 ### 安装
 
-#### 环境要求
-- Node.js >= 16.0
-- npm >= 8.0
+建议使用较新的 Node.js LTS 与 npm。
 
-#### 克隆项目
 ```bash
 git clone https://github.com/sitns/scidraw.git
 cd scidraw
 npm install
 ```
 
-### 使用方法
+### 脚本
 
-#### 开发模式
-```bash
-npm run dev
-```
-启动 Vite 开发服务器和 Electron 应用。
+| 命令 | 说明 |
+|------|------|
+| `npm run dev` | 启动 Vite 开发服务器并拉起 Electron |
+| `npm run build:renderer` | 构建 renderer 到 `dist-renderer/` |
+| `npm run start` | 运行 Electron，需先执行 `npm run build:renderer` |
+| `npm run pack` | 生成 electron-builder 目录包 |
+| `npm run dist` | 打包桌面应用 |
 
-#### 生产模式
-```bash
-npm run build:renderer
-npm run start
-```
+### 使用流程
 
-#### 打包成可执行文件 (Windows)
+1. 顶部工具栏可执行 `新建 / 打开 / 保存 / 导入 / 导出 PDF`。
+2. 左侧形状面板按分组提供内置图形、文本框和图片插入。
+3. 中间区域包含 YAML 编辑器与可视化画布，二者实时同步。
+4. 右侧属性面板使用纵向布局，可直接编辑节点、连线、文本和图片属性。
 
-**方法一：使用 electron-builder 自动打包**
-```bash
-npm run dist
-```
-打包后的 exe 文件在 `dist` 目录中。
+### 操作与快捷键
 
-**方法二：手动运行（无需打包）**
-```bash
-# 先构建
-npm run build:renderer
-
-# 然后直接运行 Electron
-npx electron .
-```
-
-### 界面布局
-
-```
-┌────────────┬──────────────────┬─────────────────┬──────────────┐
-│  节点工具栏  │   DSL 代码编辑器  │   可视化画布     │   属性面板   │
-│            │                  │                 │              │
-│ [矩形]     │  yaml 代码...    │   拖拽节点绘图   │  [标签文本]  │
-│ [圆角矩形] │                  │                 │  [宽度/高度] │
-│ [圆形]     │                  │                 │  [颜色设置]  │
-│ [菱形]     │                  │                 │  [位置坐标]  │
-│ [流程]     │                  │                 │  [字体设置]  │
-│ [数据]     │                  │                 │              │
-│ [文本框]   │                  │                 │  ──────────  │
-│ [插入图片] │                  │                 │  [图层控制]  │
-│            │                  │                 │              │
-│ ────────── │                  │                 │              │
-│ [添加连线] │                  │                 │              │
-└────────────┴──────────────────┴─────────────────┴──────────────┘
-```
-
-### 快捷键
-
-| 快捷键 | 功能 |
-|--------|------|
-| `Ctrl + 滚轮` | 缩放画布 |
+| 操作 | 说明 |
+|------|------|
+| `Ctrl/Cmd + 滚轮` | 缩放画布 |
 | `Alt + 左键拖动` | 平移画布 |
 | `中键拖动` | 平移画布 |
-| `Ctrl + N` | 新建文件 |
-| `Ctrl + O` | 打开文件 |
-| `Ctrl + S` | 保存文件 |
-| `Ctrl + I` | 导入 TikZ |
-| `Ctrl + P` | 导出 PDF |
+| 在空白区域拖拽 | 框选节点 / 文本 / 图片 |
+| 拖拽节点标签或连线标签 | 调整标签位置 |
+| `Ctrl/Cmd + N` | 新建图表 |
+| `Ctrl/Cmd + O` | 打开 YAML / JSON / draw.io / XML |
+| `Ctrl/Cmd + S` | 保存当前 YAML |
+| `Ctrl/Cmd + I` | 打开 TikZ 导入对话框 |
+| `Ctrl/Cmd + P` | 打开当前图表的 PDF 打印导出视图 |
 
-### DSL 语法说明
-
-使用 YAML 格式定义图表：
+### DSL 示例
 
 ```yaml
-# 画布配置
 canvas:
-  width: 800
-  height: 600
   background: "#ffffff"
+  infinite: true
 
-# 节点定义
 nodes:
-  - id: input           # 唯一标识
-    type: box           # 类型: box/rounded/circle/diamond/process/data
-    x: 50               # X坐标
-    y: 50               # Y坐标
-    width: 120          # 宽度
-    height: 60          # 高度
-    label: "输入数据"    # 标签文本
-    subtitle: ""        # 副标题（可选）
-    zIndex: 0           # 图层顺序
+  - id: input
+    type: rounded
+    x: 120
+    y: 120
+    width: 160
+    height: 80
+    label: "输入"
+    subtitle: "可选副标题"
+    groupId: group_1
     style:
-      fill: "#e3f2fd"       # 填充颜色
-      stroke: "#2196f3"     # 边框颜色
-      strokeWidth: 2        # 边框宽度
+      fill: "#e8f5e9"
+      stroke: "#4caf50"
+      strokeWidth: 2
 
-# 连线定义
+  - id: decision
+    type: diamond
+    x: 420
+    y: 110
+    width: 120
+    height: 120
+    label: "判断"
+    style:
+      fill: "#fff3e0"
+      stroke: "#ff9800"
+      strokeWidth: 2
+
 edges:
-  - from: input         # 起点节点ID
-    to: process         # 终点节点ID
-    label: ""           # 连线标签（可选）
-    style: solid        # 线条样式: solid/dashed/dotted
-    fromDir: auto       # 起点方向: auto/left/right/top/bottom
-    toDir: auto         # 终点方向
-    curveType: auto     # 曲线类型: auto/straight/bezier/bezier2/manual
-    controlPoints: []   # 控制点坐标（用于手动曲线）
+  - id: edge_1
+    from: input
+    to: decision
+    label: "流程"
+    style: solid
+    curveType: straight
 
-# 文本定义
 texts:
-  - id: text_1
-    x: 100
-    y: 100
-    content: "文本内容"
+  - id: note_1
+    x: 120
+    y: 300
+    content: "独立文本"
     fontSize: 14
-    fontWeight: normal
-    color: "#000000"
 
-# 图片定义
 images:
   - id: image_1
-    x: 100
+    x: 620
     y: 100
-    width: 200
-    height: 150
-    src: "[base64 image data]"
+    width: 220
+    height: 140
+    fit: contain
+    opacity: 0.9
+    crop:
+      x: 0
+      y: 0
+      width: 1
+      height: 1
 ```
 
-### 图层管理
-
-选中元素后，可以使用图层控制按钮：
-- **⬆️⬆** 置于顶层 - 将元素移到最前面
-- **⬆️** 上移一层 - 将元素向上移动一层
-- **⬇️** 下移一层 - 将元素向下移动一层
-- **⬇️⬇** 置于底层 - 将元素移到最后面
-
-### 插入图片
-
-1. 点击左侧工具栏的"插入图片"按钮
-2. 选择本地图片文件（支持 JPG、PNG、GIF、SVG 等格式）
-3. 图片会自动添加到画布上
-4. 可以拖动调整位置，选中后可删除
-
-### 导入 TikZ
-
-1. 点击工具栏的"导入 TikZ"按钮
-2. 在弹出的对话框中粘贴 TikZ 代码
-3. 点击"导入"按钮，代码会自动转换为可视化图表
+说明:
+`groupId` 用于持久分组移动。
+`images` 当前不会把原始二进制图片内容写入 YAML。
 
 ### 技术栈
 
-- **Electron** - 跨平台桌面应用框架
-- **React** - UI 组件库
-- **Vite** - 快速构建工具
-- **Monaco Editor** - VS Code 同款代码编辑器
-- **SVG** - 矢量图形渲染
-- **js-yaml** - YAML 解析器
-
-### 项目结构
-
-```
-scidraw/
-├── src/
-│   ├── main/                 # Electron 主进程
-│   │   ├── main.js           # 主进程入口
-│   │   └── preload.js        # 预加载脚本
-│   └── renderer/             # 渲染进程
-│       ├── components/       # React 组件
-│       │   ├── WelcomeScreen.jsx      # 欢迎页面
-│       │   ├── GuideOverlay.jsx       # 新手引导
-│       │   ├── NodeToolbar.jsx        # 节点工具栏
-│       │   ├── NodePropertiesPanel.jsx # 属性面板
-│       │   └── TikZImportDialog.jsx   # TikZ 导入对话框
-│       ├── utils/            # 工具函数
-│       │   ├── dslParser.js    # DSL 解析/序列化
-│       │   ├── tikzParser.js   # TikZ 解析
-│       │   └── i18n.js         # 国际化
-│       ├── App.jsx           # 主应用组件
-│       ├── index.jsx         # 入口文件
-│       └── styles.css        # 样式文件
-├── dist-renderer/            # 构建输出
-├── package.json
-└── vite.config.js
-```
+- Electron
+- React
+- Vite
+- Monaco Editor（加载失败时会回退到普通文本框）
+- SVG
+- js-yaml
 
 ### 许可证
 
@@ -234,110 +162,143 @@ scidraw/
 
 ## English
 
-### Features
+### Current Capabilities
 
-- **🔄 Bidirectional Sync** - Real-time synchronization between code editor and visual canvas
-- **📦 Multiple Node Types** - 6 shape types: box, rounded, circle, diamond, process, data
-- **🔀 Smart Connections** - Auto-calculated optimal connection paths with manual direction control
-- **🎯 Curve Control Points** - Bezier curves, manual control points for custom curve shapes
-- **📥 Import TikZ** - Import TikZ code and convert to visual diagram
-- **📑 PDF Export** - Export diagrams directly to PDF format for sharing and printing
-- **🖼️ Insert Images** - Insert JPG, PNG images from local files to canvas
-- **📚 Layer Management** - Bring to front, bring forward, send backward, send to back
-- **🎨 Font Editing** - Support multiple fonts (Arial, Times New Roman, SimSun, etc.), font size, weight
-- **📝 Text Boxes** - Insert standalone text elements with custom styling
-- **🖱️ Draggable Labels** - Freely move node and edge label positions
-- **🔍 Canvas Zoom** - Ctrl+scroll to zoom, Alt+drag to pan
-- **📏 Resizable Panels** - Drag panel borders to resize
-- **🌐 i18n Support** - Complete Chinese and English interface
-- **📖 Beginner Guide** - Built-in welcome screen and tutorial
+- **Bidirectional YAML + canvas editing**: edits in the code pane and on the visual canvas sync both ways.
+- **15 built-in shapes**: `box`, `rounded`, `circle`, `ellipse`, `diamond`, `triangle`, `process`, `data`, `document`, `database`, `terminator`, `preparation`, `swimlane`, `note`, `package`.
+- **Infinite canvas**: the canvas expands with content and supports grid rendering, zoom, pan, and trimmed export bounds.
+- **Text and images**: insert standalone text blocks and local images, then edit image size, opacity, crop region, and `cover` / `contain` / `fill` fit modes.
+- **Marquee select and bind/unbind**: select multiple nodes / texts / images and bind them into a persistent movement group.
+- **Edge editing**: create node-to-node edges, change line style and curve mode, drag labels, and reorder layers.
+- **Import paths**: import TikZ, Mermaid, and MVP-level draw.io / diagrams.net XML.
+- **Cropped PDF print export**: export uses the actual diagram bounds to reduce empty margins.
+- **Desktop app flow**: Electron menus, top toolbar, bilingual UI, welcome screen, and guide overlay are included.
+
+### Current Limitations
+
+- **draw.io support is intentionally minimal right now**: it currently supports uncompressed `mxGraph` XML and uncompressed `.drawio` content, with basic vertex/edge extraction and partial style mapping. Compressed files and advanced style fidelity are not supported yet.
+- **Mermaid and TikZ importers are lightweight parsers**: they cover common input patterns, not the full language specs.
+- **Marquee selection and binding do not include edges**: those features currently apply only to nodes, texts, and images.
+- **Images are not fully persisted in YAML yet**: saved YAML writes a placeholder `src` instead of embedding the original image bytes. Images can be restored from memory during the current session, but a reopened standalone file will require reinserting them.
 
 ### Installation
 
-#### Requirements
-- Node.js >= 16.0
-- npm >= 8.0
+Use a recent Node.js LTS release and npm.
 
-#### Clone Project
 ```bash
 git clone https://github.com/sitns/scidraw.git
 cd scidraw
 npm install
 ```
 
-### Usage
+### Scripts
 
-#### Development Mode
-```bash
-npm run dev
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start the Vite dev server and Electron together |
+| `npm run build:renderer` | Build the renderer into `dist-renderer/` |
+| `npm run start` | Run Electron after building the renderer |
+| `npm run pack` | Create an unpacked electron-builder directory build |
+| `npm run dist` | Package the desktop app |
+
+### Workflow
+
+1. Use the top toolbar for `New / Open / Save / Import / Export PDF`.
+2. Use the left palette for shapes, text boxes, image insertion, edge creation, and bind/unbind actions.
+3. Edit YAML and the visual canvas side by side in the middle.
+4. Use the right properties panel to edit node, edge, text, and image settings in a single vertical layout.
+
+### Controls And Shortcuts
+
+| Action | Description |
+|--------|-------------|
+| `Ctrl/Cmd + Scroll` | Zoom the canvas |
+| `Alt + Left drag` | Pan the canvas |
+| `Middle drag` | Pan the canvas |
+| Drag on empty canvas | Marquee-select nodes / texts / images |
+| Drag node labels or edge labels | Reposition labels |
+| `Ctrl/Cmd + N` | New diagram |
+| `Ctrl/Cmd + O` | Open YAML / JSON / draw.io / XML |
+| `Ctrl/Cmd + S` | Save current YAML |
+| `Ctrl/Cmd + I` | Open the TikZ import dialog |
+| `Ctrl/Cmd + P` | Open the PDF print/export view |
+
+### DSL Example
+
+```yaml
+canvas:
+  background: "#ffffff"
+  infinite: true
+
+nodes:
+  - id: input
+    type: rounded
+    x: 120
+    y: 120
+    width: 160
+    height: 80
+    label: "Input"
+    subtitle: "optional"
+    groupId: group_1
+    style:
+      fill: "#e8f5e9"
+      stroke: "#4caf50"
+      strokeWidth: 2
+
+  - id: decision
+    type: diamond
+    x: 420
+    y: 110
+    width: 120
+    height: 120
+    label: "Decision"
+    style:
+      fill: "#fff3e0"
+      stroke: "#ff9800"
+      strokeWidth: 2
+
+edges:
+  - id: edge_1
+    from: input
+    to: decision
+    label: "Flow"
+    style: solid
+    curveType: straight
+
+texts:
+  - id: note_1
+    x: 120
+    y: 300
+    content: "Standalone text"
+    fontSize: 14
+
+images:
+  - id: image_1
+    x: 620
+    y: 100
+    width: 220
+    height: 140
+    fit: contain
+    opacity: 0.9
+    crop:
+      x: 0
+      y: 0
+      width: 1
+      height: 1
 ```
-Starts Vite dev server and Electron app.
 
-#### Production Mode
-```bash
-npm run build:renderer
-npm run start
-```
-
-#### Build as Executable (Windows)
-
-**Method 1: Using electron-builder**
-```bash
-npm run dist
-```
-The packaged exe file will be in the `dist` directory.
-
-**Method 2: Run directly (no packaging needed)**
-```bash
-# Build first
-npm run build:renderer
-
-# Then run Electron directly
-npx electron .
-```
-
-### Keyboard Shortcuts
-
-| Shortcut | Function |
-|----------|----------|
-| `Ctrl + Scroll` | Zoom canvas |
-| `Alt + Left-click drag` | Pan canvas |
-| `Middle-click drag` | Pan canvas |
-| `Ctrl + N` | New file |
-| `Ctrl + O` | Open file |
-| `Ctrl + S` | Save file |
-| `Ctrl + I` | Import TikZ |
-| `Ctrl + P` | Export PDF |
-
-### Layer Management
-
-Select an element and use layer control buttons:
-- **⬆️⬆** Bring to Front - Move element to the very front
-- **⬆️** Bring Forward - Move element up one layer
-- **⬇️** Send Backward - Move element down one layer
-- **⬇️⬇** Send to Back - Move element to the very back
-
-### Insert Images
-
-1. Click "Insert Image" button in the left toolbar
-2. Select a local image file (supports JPG, PNG, GIF, SVG)
-3. The image will be added to the canvas
-4. Drag to reposition, select to delete
-
-### Import TikZ
-
-1. Click "Import TikZ" button in the toolbar
-2. Paste TikZ code in the dialog
-3. Click "Import" to convert the code to visual diagram
+Notes:
+`groupId` enables persistent grouped movement.
+`images` are not fully embedded into saved YAML yet.
 
 ### Tech Stack
 
-- **Electron** - Cross-platform desktop framework
-- **React** - UI component library
-- **Vite** - Fast build tool
-- **Monaco Editor** - VS Code's code editor
-- **SVG** - Vector graphics rendering
-- **js-yaml** - YAML parser
+- Electron
+- React
+- Vite
+- Monaco Editor with a plain textarea fallback
+- SVG
+- js-yaml
 
 ### License
 
