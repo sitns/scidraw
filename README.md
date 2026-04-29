@@ -20,11 +20,12 @@ A desktop scientific diagram editor that combines a YAML DSL with a visual canva
 - **15 个内置形状**: `box`、`rounded`、`circle`、`ellipse`、`diamond`、`triangle`、`process`、`data`、`document`、`database`、`terminator`、`preparation`、`swimlane`、`note`、`package`。
 - **无限画布**: 画布会根据内容自动扩展，支持网格背景、缩放、平移和导出边界裁切。
 - **文本与图片元素**: 可插入独立文本框和本地图片，支持图片缩放、透明度、`cover` / `contain` / `fill` 填充模式与裁剪区域。
-- **框选与绑定/解绑**: 可框选多个节点 / 文本 / 图片，并将它们绑定为持久分组，之后拖动任一成员会整组联动。
+- **框选与绑定/解绑**: 左键或右键在画布空白区域拖拽即可框选多个节点 / 文本 / 图片，并可将它们绑定为持久分组，之后拖动任一成员会整组联动。
 - **连线编辑**: 支持节点间连线、线型切换、曲线模式切换、标签拖拽和图层调整。
 - **多来源导入**: 支持 TikZ、Mermaid，以及最小可用版本的 draw.io / diagrams.net XML 导入。
 - **PDF 打印导出**: 导出时按实际图形边界裁切，减少大片空白。
 - **桌面应用体验**: Electron 菜单、顶部工具栏、中英文界面、欢迎页和引导页都可用。
+- **文件变更追踪**: 代码或画布发生修改后自动标记脏状态。关闭窗口或退出时若有未保存更改，会弹出原生保存/放弃/取消对话框，避免误关丢失数据。
 
 ### 当前限制
 
@@ -67,7 +68,7 @@ npm install
 | `Ctrl/Cmd + 滚轮` | 缩放画布 |
 | `Alt + 左键拖动` | 平移画布 |
 | `中键拖动` | 平移画布 |
-| 在空白区域拖拽 | 框选节点 / 文本 / 图片 |
+| 在空白区域拖拽（左键或右键） | 框选节点 / 文本 / 图片 |
 | 拖拽节点标签或连线标签 | 调整标签位置 |
 | `Ctrl/Cmd + N` | 新建图表 |
 | `Ctrl/Cmd + O` | 打开 YAML / JSON / draw.io / XML |
@@ -168,11 +169,12 @@ images:
 - **15 built-in shapes**: `box`, `rounded`, `circle`, `ellipse`, `diamond`, `triangle`, `process`, `data`, `document`, `database`, `terminator`, `preparation`, `swimlane`, `note`, `package`.
 - **Infinite canvas**: the canvas expands with content and supports grid rendering, zoom, pan, and trimmed export bounds.
 - **Text and images**: insert standalone text blocks and local images, then edit image size, opacity, crop region, and `cover` / `contain` / `fill` fit modes.
-- **Marquee select and bind/unbind**: select multiple nodes / texts / images and bind them into a persistent movement group.
+- **Marquee select and bind/unbind**: drag with left or right mouse button on empty canvas to select multiple nodes / texts / images and bind them into a persistent movement group.
 - **Edge editing**: create node-to-node edges, change line style and curve mode, drag labels, and reorder layers.
 - **Import paths**: import TikZ, Mermaid, and MVP-level draw.io / diagrams.net XML.
 - **Cropped PDF print export**: export uses the actual diagram bounds to reduce empty margins.
 - **Desktop app flow**: Electron menus, top toolbar, bilingual UI, welcome screen, and guide overlay are included.
+- **Unsaved-change tracking**: the editor automatically tracks dirty state. Closing the window or quitting with unsaved changes shows a native Save / Discard / Cancel dialog to prevent accidental data loss.
 
 ### Current Limitations
 
@@ -215,7 +217,7 @@ npm install
 | `Ctrl/Cmd + Scroll` | Zoom the canvas |
 | `Alt + Left drag` | Pan the canvas |
 | `Middle drag` | Pan the canvas |
-| Drag on empty canvas | Marquee-select nodes / texts / images |
+| Drag on empty canvas (left or right button) | Marquee-select nodes / texts / images |
 | Drag node labels or edge labels | Reposition labels |
 | `Ctrl/Cmd + N` | New diagram |
 | `Ctrl/Cmd + O` | Open YAML / JSON / draw.io / XML |

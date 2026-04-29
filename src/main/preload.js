@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openFile: () => ipcRenderer.invoke('open-file'),
   exportPDF: (data) => ipcRenderer.invoke('export-pdf', data),
   exportPDFFromSVG: (data) => ipcRenderer.invoke('export-pdf-from-svg', data),
+  send: (channel, ...args) => ipcRenderer.send(channel, ...args),
   onMenuNew: (callback) => ipcRenderer.on('menu-new', callback),
   removeMenuNew: (callback) => ipcRenderer.removeListener('menu-new', callback),
   onMenuOpen: (callback) => ipcRenderer.on('menu-open', callback),
@@ -18,5 +19,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMenuImportTikZ: (callback) => ipcRenderer.on('menu-import-tikz', callback),
   removeMenuImportTikZ: (callback) => ipcRenderer.removeListener('menu-import-tikz', callback),
   onMenuImportDrawio: (callback) => ipcRenderer.on('menu-import-drawio', callback),
-  removeMenuImportDrawio: (callback) => ipcRenderer.removeListener('menu-import-drawio', callback)
+  removeMenuImportDrawio: (callback) => ipcRenderer.removeListener('menu-import-drawio', callback),
+  onQueryDirtyState: (callback) => ipcRenderer.on('query-dirty-state', callback),
+  removeQueryDirtyState: (callback) => ipcRenderer.removeListener('query-dirty-state', callback)
 });

@@ -109,6 +109,9 @@ process.on('unhandledRejection', (reason) => {
   log.error('Unhandled Rejection:', reason);
 });
 
+let pendingClose = false;
+let forceClosing = false;
+
 function createWindow() {
   log.info('Creating main window...');
   createMenu();
@@ -146,6 +149,53 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, '../../dist-renderer/index.html'));
   }
+
+  mainWindow.on('close', (e) => {
+    if (forceClosing) return;
+    if (!mainWindow.webContents) return;
+
+    e.preventDefault();
+
+    let handled = false;
+    const fallback = setTimeout(() => {
+      if (!handled) {
+        handled = true;
+        forceClosing = true;
+        mainWindow.destroy();
+      }
+    }, 3000);
+
+    mainWindow.webContents.send('query-dirty-state');
+
+    ipcMain.once('dirty-state-response', (event, isDirty) => {
+      clearTimeout(fallback);
+      if (handled) return;
+      handled = true;
+
+      if (isDirty) {
+        dialog.showMessageBox(mainWindow, {
+          type: 'question',
+          buttons: ['保存', '不保存', '取消'],
+          defaultId: 0,
+          cancelId: 2,
+          title: '未保存的更改',
+          message: '你还有未保存的更改，是否要保存后再关闭？',
+          detail: '如果不保存，未保存的更改将丢失。'
+        }).then((result) => {
+          if (result.response === 0) {
+            pendingClose = true;
+            mainWindow.webContents.send('menu-save');
+          } else if (result.response === 1) {
+            forceClosing = true;
+            mainWindow.destroy();
+          }
+        });
+      } else {
+        forceClosing = true;
+        mainWindow.destroy();
+      }
+    });
+  });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -264,6 +314,15 @@ ipcMain.handle('export-pdf-from-svg', async (event, { svgString, width, height }
     }
   }
   return { success: false };
+});
+
+ipcMain.on('save-done', (event, success) => {
+  if (!pendingClose) return;
+  pendingClose = false;
+  if (success) {
+    forceClosing = true;
+    mainWindow.destroy();
+  }
 });
 
 log.info('Main process initialized');

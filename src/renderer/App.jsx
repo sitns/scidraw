@@ -198,12 +198,19 @@ function App() {
   const [monacoError, setMonacoError] = useState(false);
   const [editorWidth, setEditorWidth] = useState(40);
   const [propertyWidth, setPropertyWidth] = useState(260);
+  const [isDirty, setIsDirty] = useState(false);
   const editorContainerRef = useRef(null);
   const editorRef = useRef(null);
   const isEditorUpdating = useRef(false);
   const syncDirectionRef = useRef(syncDirection);
   const diagramRef = useRef(diagram);
   const imageStoreRef = useRef({});
+  const isDirtyRef = useRef(false);
+  const savingRef = useRef(false);
+
+  useEffect(() => {
+    isDirtyRef.current = isDirty;
+  }, [isDirty]);
 
   useEffect(() => {
     syncDirectionRef.current = syncDirection;
@@ -221,6 +228,7 @@ function App() {
     });
 
     setSyncDirection('visual-to-code');
+    setIsDirty(true);
     setDiagram(newDiagram);
 
     try {
@@ -276,6 +284,7 @@ function App() {
       if (syncDirectionRef.current !== 'code-to-visual') return;
       const nextCode = editorRef.current.getValue();
       setCode(nextCode);
+      setIsDirty(true);
       try {
         parseAndLoadCode(nextCode, diagramRef.current);
       } catch (e) {
@@ -613,18 +622,27 @@ function App() {
   }, [diagram, handleVisualChange]);
 
   const handleSave = async () => {
-    if (!window.electronAPI) return;
-    await window.electronAPI.saveFile({
-      content: code,
-      defaultName: 'diagram.yaml',
-      filters: [{ name: 'YAML Files', extensions: ['yaml', 'yml'] }]
-    });
+    if (savingRef.current || !window.electronAPI) return;
+    savingRef.current = true;
+    try {
+      const result = await window.electronAPI.saveFile({
+        content: code,
+        defaultName: 'diagram.yaml',
+        filters: [{ name: 'YAML Files', extensions: ['yaml', 'yml'] }]
+      });
+      if (result.success) setIsDirty(false);
+      window.electronAPI.send('save-done', result.success);
+    } finally {
+      savingRef.current = false;
+    }
   };
 
   const handleOpen = async () => {
     if (!window.electronAPI) return;
     const result = await window.electronAPI.openFile();
     if (!result.success) return;
+
+    setIsDirty(false);
 
     try {
       const input = result.content;
@@ -640,7 +658,9 @@ function App() {
   };
 
   const handleNewFile = () => {
-    parseAndLoadCode(`canvas:\n  background: "#ffffff"\n  infinite: true\n\nnodes: []\n\nedges: []\n`);
+    setIsDirty(false);
+    const emptyDSL = `canvas:\n  background: "#ffffff"\n  infinite: true\n\nnodes: []\n\nedges: []\n`;
+    parseAndLoadCode(emptyDSL);
   };
 
   const handleTikzImport = (input) => {
@@ -719,6 +739,30 @@ function App() {
       api.removeMenuExportPDF?.(handleMenuExportPdf);
     };
   }, [handleExportPDF, handleOpen, handleSave, handleNewFile]);
+
+  useEffect(() => {
+    const api = window.electronAPI;
+    if (!api) return;
+
+    const handleBeforeUnload = (e) => {
+      if (isDirtyRef.current) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    const handleQueryDirty = () => {
+      api.send('dirty-state-response', isDirtyRef.current);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    api.onQueryDirtyState(handleQueryDirty);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      api.removeQueryDirtyState(handleQueryDirty);
+    };
+  }, []);
 
   const selectedNode = diagram?.nodes?.find((node) => node.id === selectedId) || null;
   const selectedEdge = diagram?.edges?.find((edge) => edge.id === selectedId) || null;
@@ -1051,7 +1095,7 @@ function VisualCanvas({ diagram, onElementTranslate, onEdgeUpdate, onTextMove, o
 
   return (
     <div className="canvas-container" style={{ position: 'relative', background: '#e9eef5' }}>
-      <svg ref={svgRef} viewBox={`${viewBoxX} ${viewBoxY} ${viewBoxWidth} ${viewBoxHeight}`} xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" style={{ width: '100%', height: '100%', background: diagram.canvas?.background || '#fff', cursor: isPanning ? 'grabbing' : isSelecting ? 'crosshair' : 'default' }} onMouseDown={(e) => { if (e.button === 1 || (e.button === 0 && e.altKey)) { e.preventDefault(); setIsPanning(true); setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y }); return; } const target = e.target; if (target === svgRef.current || target.tagName === 'svg' || target.tagName === 'defs') { const point = screenToSvg(e.clientX, e.clientY); setSelectionBox({ x1: point.x, y1: point.y, x2: point.x, y2: point.y }); setIsSelecting(true); if (!e.shiftKey) { onSelect(null); onSelectMultiple([]); } } }}>
+      <svg ref={svgRef} viewBox={`${viewBoxX} ${viewBoxY} ${viewBoxWidth} ${viewBoxHeight}`} xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" style={{ width: '100%', height: '100%', background: diagram.canvas?.background || '#fff', cursor: isPanning ? 'grabbing' : isSelecting ? 'crosshair' : 'default' }} onMouseDown={(e) => { if (e.button === 1 || (e.button === 0 && e.altKey)) { e.preventDefault(); setIsPanning(true); setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y }); return; } if (e.button !== 0 && e.button !== 2) return; e.preventDefault(); const target = e.target; const tag = target.tagName; if (target === svgRef.current || tag === 'svg' || tag === 'defs' || tag === 'rect' || tag === 'pattern') { const point = screenToSvg(e.clientX, e.clientY); setSelectionBox({ x1: point.x, y1: point.y, x2: point.x, y2: point.y }); setIsSelecting(true); if (!e.shiftKey) { onSelect(null); onSelectMultiple([]); } } }} onContextMenu={(e) => e.preventDefault()}>
         <defs>
           <pattern id="grid-pattern" width="32" height="32" patternUnits="userSpaceOnUse">
             <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#d6dde8" strokeWidth="1" />
